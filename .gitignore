@@ -1,0 +1,28 @@
+# Generated files
+*.o
+*.exe
+lex.yy.c
+fort.tab.c
+fort.tab.h
+fort.output
+fort.states
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+
+# Archives
+*.zip
+*.tar
+*.gz
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Build directory
+build/
+bin/ 
