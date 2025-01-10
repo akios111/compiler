@@ -1,0 +1,2841 @@
+Nonterminals useless in grammar
+
+    statements
+
+
+Terminals unused in grammar
+
+    PROGRAM
+    FUNCTION
+    SUBROUTINE
+    COMMON
+    MULOP
+    LBRACK
+    RBRACK
+    LPAREN_ASSIGN
+
+
+Rules useless in grammar
+
+  118 statements: unlabeled_statement
+  119           | statements unlabeled_statement
+
+
+State 39 conflicts: 22 reduce/reduce
+State 40 conflicts: 1 shift/reduce
+State 47 conflicts: 31 reduce/reduce
+State 51 conflicts: 1 shift/reduce
+State 68 conflicts: 1 shift/reduce
+State 84 conflicts: 1 shift/reduce
+State 98 conflicts: 23 reduce/reduce
+State 185 conflicts: 2 reduce/reduce
+
+
+Grammar
+
+    0 $accept: program $end
+
+    1 program: declarations_and_statements END
+
+    2 declarations_and_statements: ε
+    3                            | declarations_and_statements declaration
+    4                            | declarations_and_statements statement
+
+    5 declaration: type declarator_list
+    6            | type LIST declarator_list
+    7            | DATA data_list
+
+    8 type: INTEGER
+    9     | REAL
+   10     | COMPLEX
+   11     | LOGICAL
+   12     | CHARACTER
+   13     | STRING
+
+   14 declarator_list: declarator
+   15                | declarator_list COMMA declarator
+
+   16 declarator: ID
+   17           | ID LPAREN expression RPAREN
+
+   18 statement: labeled_statement
+   19          | unlabeled_statement
+
+   20 labeled_statement: LABEL unlabeled_statement
+
+   21 unlabeled_statement: assignment_statement
+   22                    | if_statement
+   23                    | do_statement
+   24                    | call_statement
+   25                    | goto_statement
+   26                    | read_statement
+   27                    | write_statement
+   28                    | CONTINUE
+   29                    | STOP
+   30                    | RETURN
+
+   31 assignment_statement: ID ASSIGN expression
+   32                     | array_reference ASSIGN expression
+   33                     | array_reference ASSIGN relational_expression
+   34                     | ID ASSIGN relational_expression
+
+   35 if_statement: IF LPAREN relational_expression RPAREN statement
+   36             | IF LPAREN relational_expression RPAREN THEN block ENDIF
+   37             | IF LPAREN relational_expression RPAREN THEN block ELSE block ENDIF
+
+   38 block: ε
+   39      | block declaration
+   40      | block labeled_statement
+   41      | block unlabeled_statement
+
+   42 do_statement: DO do_control block ENDDO
+
+   43 do_control: ID ASSIGN expression COMMA expression
+   44           | ID ASSIGN expression COMMA expression COMMA expression
+
+   45 array_reference: ID LPAREN argument_list RPAREN
+   46                | ID LPAREN RPAREN
+
+   47 argument_list: expression
+   48              | argument_list COMMA expression
+   49              | ε
+
+   50 call_statement: CALL ID
+   51               | CALL ID LPAREN argument_list RPAREN
+   52               | CALL ID LPAREN RPAREN
+
+   53 goto_statement: GOTO expression
+   54               | GOTO ID
+   55               | GOTO ID COMMA LPAREN label_list RPAREN
+
+   56 read_statement: READ read_list
+   57               | READ LPAREN read_args RPAREN read_list
+   58               | READ LPAREN read_args RPAREN COMMA read_list
+
+   59 read_args: expression
+   60          | read_args COMMA expression
+   61          | read_args COMMA range_spec
+   62          | range_spec
+
+   63 range_spec: ID ASSIGN expression COMMA expression
+
+   64 write_statement: WRITE LPAREN STAR COMMA STAR RPAREN write_list
+
+   65 data_list: data_item
+   66          | data_list COMMA data_item
+
+   67 data_item: ID DIVOP value_list DIVOP
+
+   68 value_list: value
+   69           | value_list COMMA value
+   70           | value_list COMMA STAR value
+
+   71 value: constant
+   72      | LPAREN range_pair RPAREN
+   73      | STAR STRING_LITERAL
+
+   74 range_pair: number COLON number
+
+   75 number: RCONST
+   76       | ICONST
+   77       | ADDOP RCONST
+   78       | ADDOP ICONST
+
+   79 constant: RCONST
+   80         | ICONST
+   81         | TRUE
+   82         | FALSE
+   83         | STRING_LITERAL
+   84         | binary_number
+
+   85 binary_number: ICONST ID RCONST
+
+   86 expression: simple_expression
+   87           | array_reference
+
+   88 simple_expression: term
+   89                  | ADDOP term
+   90                  | simple_expression ADDOP term
+
+   91 term: power_term
+
+   92 power_term: factor
+   93           | factor POWEROP expression
+
+   94 factor: primary
+
+   95 primary: ID
+   96        | constant
+   97        | array_reference
+   98        | LPAREN expression RPAREN
+
+   99 label_list: ICONST
+  100           | label_list COMMA ICONST
+
+  101 read_list: read_item
+  102          | read_list COMMA read_item
+
+  103 read_item: ID
+  104          | array_reference
+
+  105 write_list: write_item
+  106           | write_list COMMA write_item
+
+  107 write_item: expression
+
+  108 relop: EQ
+  109      | LT
+  110      | GT
+  111      | LE
+
+  112 relational_expression: simple_expression
+  113                      | simple_expression relop simple_expression
+  114                      | NOT relational_expression
+  115                      | relational_expression AND relational_expression
+  116                      | relational_expression OR relational_expression
+  117                      | LPAREN relational_expression RPAREN
+
+
+Terminals, with rules where they appear
+
+    $end (0) 0
+    error (256)
+    PROGRAM (258)
+    FUNCTION (259)
+    SUBROUTINE (260)
+    END (261) 1
+    COMMON (262)
+    INTEGER (263) 8
+    REAL (264) 9
+    COMPLEX (265) 10
+    LOGICAL (266) 11
+    CHARACTER (267) 12
+    STRING (268) 13
+    LIST (269) 6
+    DATA (270) 7
+    CONTINUE (271) 28
+    GOTO (272) 53 54 55
+    CALL (273) 50 51 52
+    READ (274) 56 57 58
+    WRITE (275) 64
+    IF (276) 35 36 37
+    THEN (277) 36 37
+    ELSE (278) 37
+    ENDIF (279) 36 37
+    DO (280) 42
+    ENDDO (281) 42
+    STOP (282) 29
+    RETURN (283) 30
+    LABEL <ival> (284) 20
+    ID <sval> (285) 16 17 31 34 43 44 45 46 50 51 52 54 55 63 67 85 95 103
+    ICONST <ival> (286) 76 78 80 85 99 100
+    RCONST <rval> (287) 75 77 79 85
+    STRING_LITERAL <sval> (288) 73 83
+    ASSIGN (289) 31 32 33 34 43 44 63
+    ADDOP (290) 77 78 89 90
+    MULOP (291)
+    DIVOP (292) 67
+    POWEROP (293) 93
+    LPAREN (294) 17 35 36 37 45 46 51 52 55 57 58 64 72 98 117
+    RPAREN (295) 17 35 36 37 45 46 51 52 55 57 58 64 72 98 117
+    COMMA (296) 15 43 44 48 55 58 60 61 63 64 66 69 70 100 102 106
+    STAR (297) 64 70 73
+    LBRACK (298)
+    RBRACK (299)
+    NOT (300) 114
+    AND (301) 115
+    OR (302) 116
+    GT (303) 110
+    LT (304) 109
+    EQ (305) 108
+    LE (306) 111
+    TRUE (307) 81
+    FALSE (308) 82
+    COLON (309) 74
+    LPAREN_ASSIGN (310)
+
+
+Nonterminals, with rules where they appear
+
+    $accept (56)
+        on left: 0
+    program (57)
+        on left: 1
+        on right: 0
+    declarations_and_statements (58)
+        on left: 2 3 4
+        on right: 1 3 4
+    declaration (59)
+        on left: 5 6 7
+        on right: 3 39
+    type (60)
+        on left: 8 9 10 11 12 13
+        on right: 5 6
+    declarator_list (61)
+        on left: 14 15
+        on right: 5 6 15
+    declarator (62)
+        on left: 16 17
+        on right: 14 15
+    statement (63)
+        on left: 18 19
+        on right: 4 35
+    labeled_statement (64)
+        on left: 20
+        on right: 18 40
+    unlabeled_statement (65)
+        on left: 21 22 23 24 25 26 27 28 29 30
+        on right: 19 20 41
+    assignment_statement (66)
+        on left: 31 32 33 34
+        on right: 21
+    if_statement (67)
+        on left: 35 36 37
+        on right: 22
+    block (68)
+        on left: 38 39 40 41
+        on right: 36 37 39 40 41 42
+    do_statement (69)
+        on left: 42
+        on right: 23
+    do_control (70)
+        on left: 43 44
+        on right: 42
+    array_reference (71)
+        on left: 45 46
+        on right: 32 33 87 97 104
+    argument_list (72)
+        on left: 47 48 49
+        on right: 45 48 51
+    call_statement (73)
+        on left: 50 51 52
+        on right: 24
+    goto_statement (74)
+        on left: 53 54 55
+        on right: 25
+    read_statement (75)
+        on left: 56 57 58
+        on right: 26
+    read_args (76)
+        on left: 59 60 61 62
+        on right: 57 58 60 61
+    range_spec (77)
+        on left: 63
+        on right: 61 62
+    write_statement (78)
+        on left: 64
+        on right: 27
+    data_list (79)
+        on left: 65 66
+        on right: 7 66
+    data_item (80)
+        on left: 67
+        on right: 65 66
+    value_list (81)
+        on left: 68 69 70
+        on right: 67 69 70
+    value (82)
+        on left: 71 72 73
+        on right: 68 69 70
+    range_pair (83)
+        on left: 74
+        on right: 72
+    number (84)
+        on left: 75 76 77 78
+        on right: 74
+    constant (85)
+        on left: 79 80 81 82 83 84
+        on right: 71 96
+    binary_number (86)
+        on left: 85
+        on right: 84
+    expression (87)
+        on left: 86 87
+        on right: 17 31 32 43 44 47 48 53 59 60 63 93 98 107
+    simple_expression (88)
+        on left: 88 89 90
+        on right: 86 90 112 113
+    term (89)
+        on left: 91
+        on right: 88 89 90
+    power_term (90)
+        on left: 92 93
+        on right: 91
+    factor (91)
+        on left: 94
+        on right: 92 93
+    primary (92)
+        on left: 95 96 97 98
+        on right: 94
+    label_list (93)
+        on left: 99 100
+        on right: 55 100
+    read_list (94)
+        on left: 101 102
+        on right: 56 57 58 102
+    read_item (95)
+        on left: 103 104
+        on right: 101 102
+    write_list (96)
+        on left: 105 106
+        on right: 64 106
+    write_item (97)
+        on left: 107
+        on right: 105 106
+    relop (98)
+        on left: 108 109 110 111
+        on right: 113
+    relational_expression (99)
+        on left: 112 113 114 115 116 117
+        on right: 33 34 35 36 37 114 115 116 117
+
+
+State 0
+
+    0 $accept: • program $end
+
+    $default  reduce using rule 2 (declarations_and_statements)
+
+    program                      go to state 1
+    declarations_and_statements  go to state 2
+
+
+State 1
+
+    0 $accept: program • $end
+
+    $end  shift, and go to state 3
+
+
+State 2
+
+    1 program: declarations_and_statements • END
+    3 declarations_and_statements: declarations_and_statements • declaration
+    4                            | declarations_and_statements • statement
+
+    END        shift, and go to state 4
+    INTEGER    shift, and go to state 5
+    REAL       shift, and go to state 6
+    COMPLEX    shift, and go to state 7
+    LOGICAL    shift, and go to state 8
+    CHARACTER  shift, and go to state 9
+    STRING     shift, and go to state 10
+    DATA       shift, and go to state 11
+    CONTINUE   shift, and go to state 12
+    GOTO       shift, and go to state 13
+    CALL       shift, and go to state 14
+    READ       shift, and go to state 15
+    WRITE      shift, and go to state 16
+    IF         shift, and go to state 17
+    DO         shift, and go to state 18
+    STOP       shift, and go to state 19
+    RETURN     shift, and go to state 20
+    LABEL      shift, and go to state 21
+    ID         shift, and go to state 22
+
+    declaration           go to state 23
+    type                  go to state 24
+    statement             go to state 25
+    labeled_statement     go to state 26
+    unlabeled_statement   go to state 27
+    assignment_statement  go to state 28
+    if_statement          go to state 29
+    do_statement          go to state 30
+    array_reference       go to state 31
+    call_statement        go to state 32
+    goto_statement        go to state 33
+    read_statement        go to state 34
+    write_statement       go to state 35
+
+
+State 3
+
+    0 $accept: program $end •
+
+    $default  accept
+
+
+State 4
+
+    1 program: declarations_and_statements END •
+
+    $default  reduce using rule 1 (program)
+
+
+State 5
+
+    8 type: INTEGER •
+
+    $default  reduce using rule 8 (type)
+
+
+State 6
+
+    9 type: REAL •
+
+    $default  reduce using rule 9 (type)
+
+
+State 7
+
+   10 type: COMPLEX •
+
+    $default  reduce using rule 10 (type)
+
+
+State 8
+
+   11 type: LOGICAL •
+
+    $default  reduce using rule 11 (type)
+
+
+State 9
+
+   12 type: CHARACTER •
+
+    $default  reduce using rule 12 (type)
+
+
+State 10
+
+   13 type: STRING •
+
+    $default  reduce using rule 13 (type)
+
+
+State 11
+
+    7 declaration: DATA • data_list
+
+    ID  shift, and go to state 36
+
+    data_list  go to state 37
+    data_item  go to state 38
+
+
+State 12
+
+   28 unlabeled_statement: CONTINUE •
+
+    $default  reduce using rule 28 (unlabeled_statement)
+
+
+State 13
+
+   53 goto_statement: GOTO • expression
+   54               | GOTO • ID
+   55               | GOTO • ID COMMA LPAREN label_list RPAREN
+
+    ID              shift, and go to state 39
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 50
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 14
+
+   50 call_statement: CALL • ID
+   51               | CALL • ID LPAREN argument_list RPAREN
+   52               | CALL • ID LPAREN RPAREN
+
+    ID  shift, and go to state 56
+
+
+State 15
+
+   56 read_statement: READ • read_list
+   57               | READ • LPAREN read_args RPAREN read_list
+   58               | READ • LPAREN read_args RPAREN COMMA read_list
+
+    ID      shift, and go to state 57
+    LPAREN  shift, and go to state 58
+
+    array_reference  go to state 59
+    read_list        go to state 60
+    read_item        go to state 61
+
+
+State 16
+
+   64 write_statement: WRITE • LPAREN STAR COMMA STAR RPAREN write_list
+
+    LPAREN  shift, and go to state 62
+
+
+State 17
+
+   35 if_statement: IF • LPAREN relational_expression RPAREN statement
+   36             | IF • LPAREN relational_expression RPAREN THEN block ENDIF
+   37             | IF • LPAREN relational_expression RPAREN THEN block ELSE block ENDIF
+
+    LPAREN  shift, and go to state 63
+
+
+State 18
+
+   42 do_statement: DO • do_control block ENDDO
+
+    ID  shift, and go to state 64
+
+    do_control  go to state 65
+
+
+State 19
+
+   29 unlabeled_statement: STOP •
+
+    $default  reduce using rule 29 (unlabeled_statement)
+
+
+State 20
+
+   30 unlabeled_statement: RETURN •
+
+    $default  reduce using rule 30 (unlabeled_statement)
+
+
+State 21
+
+   20 labeled_statement: LABEL • unlabeled_statement
+
+    CONTINUE  shift, and go to state 12
+    GOTO      shift, and go to state 13
+    CALL      shift, and go to state 14
+    READ      shift, and go to state 15
+    WRITE     shift, and go to state 16
+    IF        shift, and go to state 17
+    DO        shift, and go to state 18
+    STOP      shift, and go to state 19
+    RETURN    shift, and go to state 20
+    ID        shift, and go to state 22
+
+    unlabeled_statement   go to state 66
+    assignment_statement  go to state 28
+    if_statement          go to state 29
+    do_statement          go to state 30
+    array_reference       go to state 31
+    call_statement        go to state 32
+    goto_statement        go to state 33
+    read_statement        go to state 34
+    write_statement       go to state 35
+
+
+State 22
+
+   31 assignment_statement: ID • ASSIGN expression
+   34                     | ID • ASSIGN relational_expression
+   45 array_reference: ID • LPAREN argument_list RPAREN
+   46                | ID • LPAREN RPAREN
+
+    ASSIGN  shift, and go to state 67
+    LPAREN  shift, and go to state 68
+
+
+State 23
+
+    3 declarations_and_statements: declarations_and_statements declaration •
+
+    $default  reduce using rule 3 (declarations_and_statements)
+
+
+State 24
+
+    5 declaration: type • declarator_list
+    6            | type • LIST declarator_list
+
+    LIST  shift, and go to state 69
+    ID    shift, and go to state 70
+
+    declarator_list  go to state 71
+    declarator       go to state 72
+
+
+State 25
+
+    4 declarations_and_statements: declarations_and_statements statement •
+
+    $default  reduce using rule 4 (declarations_and_statements)
+
+
+State 26
+
+   18 statement: labeled_statement •
+
+    $default  reduce using rule 18 (statement)
+
+
+State 27
+
+   19 statement: unlabeled_statement •
+
+    $default  reduce using rule 19 (statement)
+
+
+State 28
+
+   21 unlabeled_statement: assignment_statement •
+
+    $default  reduce using rule 21 (unlabeled_statement)
+
+
+State 29
+
+   22 unlabeled_statement: if_statement •
+
+    $default  reduce using rule 22 (unlabeled_statement)
+
+
+State 30
+
+   23 unlabeled_statement: do_statement •
+
+    $default  reduce using rule 23 (unlabeled_statement)
+
+
+State 31
+
+   32 assignment_statement: array_reference • ASSIGN expression
+   33                     | array_reference • ASSIGN relational_expression
+
+    ASSIGN  shift, and go to state 73
+
+
+State 32
+
+   24 unlabeled_statement: call_statement •
+
+    $default  reduce using rule 24 (unlabeled_statement)
+
+
+State 33
+
+   25 unlabeled_statement: goto_statement •
+
+    $default  reduce using rule 25 (unlabeled_statement)
+
+
+State 34
+
+   26 unlabeled_statement: read_statement •
+
+    $default  reduce using rule 26 (unlabeled_statement)
+
+
+State 35
+
+   27 unlabeled_statement: write_statement •
+
+    $default  reduce using rule 27 (unlabeled_statement)
+
+
+State 36
+
+   67 data_item: ID • DIVOP value_list DIVOP
+
+    DIVOP  shift, and go to state 74
+
+
+State 37
+
+    7 declaration: DATA data_list •
+   66 data_list: data_list • COMMA data_item
+
+    COMMA  shift, and go to state 75
+
+    $default  reduce using rule 7 (declaration)
+
+
+State 38
+
+   65 data_list: data_item •
+
+    $default  reduce using rule 65 (data_list)
+
+
+State 39
+
+   45 array_reference: ID • LPAREN argument_list RPAREN
+   46                | ID • LPAREN RPAREN
+   54 goto_statement: GOTO ID •
+   55               | GOTO ID • COMMA LPAREN label_list RPAREN
+   95 primary: ID •
+
+    LPAREN  shift, and go to state 68
+    COMMA   shift, and go to state 76
+
+    END        reduce using rule 54 (goto_statement)
+    END        [reduce using rule 95 (primary)]
+    INTEGER    reduce using rule 54 (goto_statement)
+    INTEGER    [reduce using rule 95 (primary)]
+    REAL       reduce using rule 54 (goto_statement)
+    REAL       [reduce using rule 95 (primary)]
+    COMPLEX    reduce using rule 54 (goto_statement)
+    COMPLEX    [reduce using rule 95 (primary)]
+    LOGICAL    reduce using rule 54 (goto_statement)
+    LOGICAL    [reduce using rule 95 (primary)]
+    CHARACTER  reduce using rule 54 (goto_statement)
+    CHARACTER  [reduce using rule 95 (primary)]
+    STRING     reduce using rule 54 (goto_statement)
+    STRING     [reduce using rule 95 (primary)]
+    DATA       reduce using rule 54 (goto_statement)
+    DATA       [reduce using rule 95 (primary)]
+    CONTINUE   reduce using rule 54 (goto_statement)
+    CONTINUE   [reduce using rule 95 (primary)]
+    GOTO       reduce using rule 54 (goto_statement)
+    GOTO       [reduce using rule 95 (primary)]
+    CALL       reduce using rule 54 (goto_statement)
+    CALL       [reduce using rule 95 (primary)]
+    READ       reduce using rule 54 (goto_statement)
+    READ       [reduce using rule 95 (primary)]
+    WRITE      reduce using rule 54 (goto_statement)
+    WRITE      [reduce using rule 95 (primary)]
+    IF         reduce using rule 54 (goto_statement)
+    IF         [reduce using rule 95 (primary)]
+    ELSE       reduce using rule 54 (goto_statement)
+    ELSE       [reduce using rule 95 (primary)]
+    ENDIF      reduce using rule 54 (goto_statement)
+    ENDIF      [reduce using rule 95 (primary)]
+    DO         reduce using rule 54 (goto_statement)
+    DO         [reduce using rule 95 (primary)]
+    ENDDO      reduce using rule 54 (goto_statement)
+    ENDDO      [reduce using rule 95 (primary)]
+    STOP       reduce using rule 54 (goto_statement)
+    STOP       [reduce using rule 95 (primary)]
+    RETURN     reduce using rule 54 (goto_statement)
+    RETURN     [reduce using rule 95 (primary)]
+    LABEL      reduce using rule 54 (goto_statement)
+    LABEL      [reduce using rule 95 (primary)]
+    ID         reduce using rule 54 (goto_statement)
+    ID         [reduce using rule 95 (primary)]
+    ADDOP      reduce using rule 95 (primary)
+    POWEROP    reduce using rule 95 (primary)
+    $default   reduce using rule 54 (goto_statement)
+
+
+State 40
+
+   80 constant: ICONST •
+   85 binary_number: ICONST • ID RCONST
+
+    ID  shift, and go to state 77
+
+    ID        [reduce using rule 80 (constant)]
+    $default  reduce using rule 80 (constant)
+
+
+State 41
+
+   79 constant: RCONST •
+
+    $default  reduce using rule 79 (constant)
+
+
+State 42
+
+   83 constant: STRING_LITERAL •
+
+    $default  reduce using rule 83 (constant)
+
+
+State 43
+
+   89 simple_expression: ADDOP • term
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference  go to state 79
+    constant         go to state 48
+    binary_number    go to state 49
+    term             go to state 80
+    power_term       go to state 53
+    factor           go to state 54
+    primary          go to state 55
+
+
+State 44
+
+   98 primary: LPAREN • expression RPAREN
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 81
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 45
+
+   81 constant: TRUE •
+
+    $default  reduce using rule 81 (constant)
+
+
+State 46
+
+   82 constant: FALSE •
+
+    $default  reduce using rule 82 (constant)
+
+
+State 47
+
+   87 expression: array_reference •
+   97 primary: array_reference •
+
+    END        reduce using rule 87 (expression)
+    END        [reduce using rule 97 (primary)]
+    INTEGER    reduce using rule 87 (expression)
+    INTEGER    [reduce using rule 97 (primary)]
+    REAL       reduce using rule 87 (expression)
+    REAL       [reduce using rule 97 (primary)]
+    COMPLEX    reduce using rule 87 (expression)
+    COMPLEX    [reduce using rule 97 (primary)]
+    LOGICAL    reduce using rule 87 (expression)
+    LOGICAL    [reduce using rule 97 (primary)]
+    CHARACTER  reduce using rule 87 (expression)
+    CHARACTER  [reduce using rule 97 (primary)]
+    STRING     reduce using rule 87 (expression)
+    STRING     [reduce using rule 97 (primary)]
+    DATA       reduce using rule 87 (expression)
+    DATA       [reduce using rule 97 (primary)]
+    CONTINUE   reduce using rule 87 (expression)
+    CONTINUE   [reduce using rule 97 (primary)]
+    GOTO       reduce using rule 87 (expression)
+    GOTO       [reduce using rule 97 (primary)]
+    CALL       reduce using rule 87 (expression)
+    CALL       [reduce using rule 97 (primary)]
+    READ       reduce using rule 87 (expression)
+    READ       [reduce using rule 97 (primary)]
+    WRITE      reduce using rule 87 (expression)
+    WRITE      [reduce using rule 97 (primary)]
+    IF         reduce using rule 87 (expression)
+    IF         [reduce using rule 97 (primary)]
+    ELSE       reduce using rule 87 (expression)
+    ELSE       [reduce using rule 97 (primary)]
+    ENDIF      reduce using rule 87 (expression)
+    ENDIF      [reduce using rule 97 (primary)]
+    DO         reduce using rule 87 (expression)
+    DO         [reduce using rule 97 (primary)]
+    ENDDO      reduce using rule 87 (expression)
+    ENDDO      [reduce using rule 97 (primary)]
+    STOP       reduce using rule 87 (expression)
+    STOP       [reduce using rule 97 (primary)]
+    RETURN     reduce using rule 87 (expression)
+    RETURN     [reduce using rule 97 (primary)]
+    LABEL      reduce using rule 87 (expression)
+    LABEL      [reduce using rule 97 (primary)]
+    ID         reduce using rule 87 (expression)
+    ID         [reduce using rule 97 (primary)]
+    ADDOP      reduce using rule 87 (expression)
+    ADDOP      [reduce using rule 97 (primary)]
+    POWEROP    reduce using rule 97 (primary)
+    RPAREN     reduce using rule 87 (expression)
+    RPAREN     [reduce using rule 97 (primary)]
+    COMMA      reduce using rule 87 (expression)
+    COMMA      [reduce using rule 97 (primary)]
+    AND        reduce using rule 87 (expression)
+    AND        [reduce using rule 97 (primary)]
+    OR         reduce using rule 87 (expression)
+    OR         [reduce using rule 97 (primary)]
+    GT         reduce using rule 87 (expression)
+    GT         [reduce using rule 97 (primary)]
+    LT         reduce using rule 87 (expression)
+    LT         [reduce using rule 97 (primary)]
+    EQ         reduce using rule 87 (expression)
+    EQ         [reduce using rule 97 (primary)]
+    LE         reduce using rule 87 (expression)
+    LE         [reduce using rule 97 (primary)]
+    $default   reduce using rule 87 (expression)
+
+
+State 48
+
+   96 primary: constant •
+
+    $default  reduce using rule 96 (primary)
+
+
+State 49
+
+   84 constant: binary_number •
+
+    $default  reduce using rule 84 (constant)
+
+
+State 50
+
+   53 goto_statement: GOTO expression •
+
+    $default  reduce using rule 53 (goto_statement)
+
+
+State 51
+
+   86 expression: simple_expression •
+   90 simple_expression: simple_expression • ADDOP term
+
+    ADDOP  shift, and go to state 82
+
+    ADDOP     [reduce using rule 86 (expression)]
+    $default  reduce using rule 86 (expression)
+
+
+State 52
+
+   88 simple_expression: term •
+
+    $default  reduce using rule 88 (simple_expression)
+
+
+State 53
+
+   91 term: power_term •
+
+    $default  reduce using rule 91 (term)
+
+
+State 54
+
+   92 power_term: factor •
+   93           | factor • POWEROP expression
+
+    POWEROP  shift, and go to state 83
+
+    $default  reduce using rule 92 (power_term)
+
+
+State 55
+
+   94 factor: primary •
+
+    $default  reduce using rule 94 (factor)
+
+
+State 56
+
+   50 call_statement: CALL ID •
+   51               | CALL ID • LPAREN argument_list RPAREN
+   52               | CALL ID • LPAREN RPAREN
+
+    LPAREN  shift, and go to state 84
+
+    $default  reduce using rule 50 (call_statement)
+
+
+State 57
+
+   45 array_reference: ID • LPAREN argument_list RPAREN
+   46                | ID • LPAREN RPAREN
+  103 read_item: ID •
+
+    LPAREN  shift, and go to state 68
+
+    $default  reduce using rule 103 (read_item)
+
+
+State 58
+
+   57 read_statement: READ LPAREN • read_args RPAREN read_list
+   58               | READ LPAREN • read_args RPAREN COMMA read_list
+
+    ID              shift, and go to state 85
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    read_args          go to state 86
+    range_spec         go to state 87
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 88
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 59
+
+  104 read_item: array_reference •
+
+    $default  reduce using rule 104 (read_item)
+
+
+State 60
+
+   56 read_statement: READ read_list •
+  102 read_list: read_list • COMMA read_item
+
+    COMMA  shift, and go to state 89
+
+    $default  reduce using rule 56 (read_statement)
+
+
+State 61
+
+  101 read_list: read_item •
+
+    $default  reduce using rule 101 (read_list)
+
+
+State 62
+
+   64 write_statement: WRITE LPAREN • STAR COMMA STAR RPAREN write_list
+
+    STAR  shift, and go to state 90
+
+
+State 63
+
+   35 if_statement: IF LPAREN • relational_expression RPAREN statement
+   36             | IF LPAREN • relational_expression RPAREN THEN block ENDIF
+   37             | IF LPAREN • relational_expression RPAREN THEN block ELSE block ENDIF
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 91
+    NOT             shift, and go to state 92
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference        go to state 79
+    constant               go to state 48
+    binary_number          go to state 49
+    simple_expression      go to state 93
+    term                   go to state 52
+    power_term             go to state 53
+    factor                 go to state 54
+    primary                go to state 55
+    relational_expression  go to state 94
+
+
+State 64
+
+   43 do_control: ID • ASSIGN expression COMMA expression
+   44           | ID • ASSIGN expression COMMA expression COMMA expression
+
+    ASSIGN  shift, and go to state 95
+
+
+State 65
+
+   42 do_statement: DO do_control • block ENDDO
+
+    $default  reduce using rule 38 (block)
+
+    block  go to state 96
+
+
+State 66
+
+   20 labeled_statement: LABEL unlabeled_statement •
+
+    $default  reduce using rule 20 (labeled_statement)
+
+
+State 67
+
+   31 assignment_statement: ID ASSIGN • expression
+   34                     | ID ASSIGN • relational_expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 91
+    NOT             shift, and go to state 92
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference        go to state 47
+    constant               go to state 48
+    binary_number          go to state 49
+    expression             go to state 97
+    simple_expression      go to state 98
+    term                   go to state 52
+    power_term             go to state 53
+    factor                 go to state 54
+    primary                go to state 55
+    relational_expression  go to state 99
+
+
+State 68
+
+   45 array_reference: ID LPAREN • argument_list RPAREN
+   46                | ID LPAREN • RPAREN
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    RPAREN          shift, and go to state 100
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    RPAREN    [reduce using rule 49 (argument_list)]
+    $default  reduce using rule 49 (argument_list)
+
+    array_reference    go to state 47
+    argument_list      go to state 101
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 102
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 69
+
+    6 declaration: type LIST • declarator_list
+
+    ID  shift, and go to state 70
+
+    declarator_list  go to state 103
+    declarator       go to state 72
+
+
+State 70
+
+   16 declarator: ID •
+   17           | ID • LPAREN expression RPAREN
+
+    LPAREN  shift, and go to state 104
+
+    $default  reduce using rule 16 (declarator)
+
+
+State 71
+
+    5 declaration: type declarator_list •
+   15 declarator_list: declarator_list • COMMA declarator
+
+    COMMA  shift, and go to state 105
+
+    $default  reduce using rule 5 (declaration)
+
+
+State 72
+
+   14 declarator_list: declarator •
+
+    $default  reduce using rule 14 (declarator_list)
+
+
+State 73
+
+   32 assignment_statement: array_reference ASSIGN • expression
+   33                     | array_reference ASSIGN • relational_expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 91
+    NOT             shift, and go to state 92
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference        go to state 47
+    constant               go to state 48
+    binary_number          go to state 49
+    expression             go to state 106
+    simple_expression      go to state 98
+    term                   go to state 52
+    power_term             go to state 53
+    factor                 go to state 54
+    primary                go to state 55
+    relational_expression  go to state 107
+
+
+State 74
+
+   67 data_item: ID DIVOP • value_list DIVOP
+
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    LPAREN          shift, and go to state 108
+    STAR            shift, and go to state 109
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    value_list     go to state 110
+    value          go to state 111
+    constant       go to state 112
+    binary_number  go to state 49
+
+
+State 75
+
+   66 data_list: data_list COMMA • data_item
+
+    ID  shift, and go to state 36
+
+    data_item  go to state 113
+
+
+State 76
+
+   55 goto_statement: GOTO ID COMMA • LPAREN label_list RPAREN
+
+    LPAREN  shift, and go to state 114
+
+
+State 77
+
+   85 binary_number: ICONST ID • RCONST
+
+    RCONST  shift, and go to state 115
+
+
+State 78
+
+   45 array_reference: ID • LPAREN argument_list RPAREN
+   46                | ID • LPAREN RPAREN
+   95 primary: ID •
+
+    LPAREN  shift, and go to state 68
+
+    $default  reduce using rule 95 (primary)
+
+
+State 79
+
+   97 primary: array_reference •
+
+    $default  reduce using rule 97 (primary)
+
+
+State 80
+
+   89 simple_expression: ADDOP term •
+
+    $default  reduce using rule 89 (simple_expression)
+
+
+State 81
+
+   98 primary: LPAREN expression • RPAREN
+
+    RPAREN  shift, and go to state 116
+
+
+State 82
+
+   90 simple_expression: simple_expression ADDOP • term
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference  go to state 79
+    constant         go to state 48
+    binary_number    go to state 49
+    term             go to state 117
+    power_term       go to state 53
+    factor           go to state 54
+    primary          go to state 55
+
+
+State 83
+
+   93 power_term: factor POWEROP • expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 118
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 84
+
+   51 call_statement: CALL ID LPAREN • argument_list RPAREN
+   52               | CALL ID LPAREN • RPAREN
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    RPAREN          shift, and go to state 119
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    RPAREN    [reduce using rule 49 (argument_list)]
+    $default  reduce using rule 49 (argument_list)
+
+    array_reference    go to state 47
+    argument_list      go to state 120
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 102
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 85
+
+   45 array_reference: ID • LPAREN argument_list RPAREN
+   46                | ID • LPAREN RPAREN
+   63 range_spec: ID • ASSIGN expression COMMA expression
+   95 primary: ID •
+
+    ASSIGN  shift, and go to state 121
+    LPAREN  shift, and go to state 68
+
+    $default  reduce using rule 95 (primary)
+
+
+State 86
+
+   57 read_statement: READ LPAREN read_args • RPAREN read_list
+   58               | READ LPAREN read_args • RPAREN COMMA read_list
+   60 read_args: read_args • COMMA expression
+   61          | read_args • COMMA range_spec
+
+    RPAREN  shift, and go to state 122
+    COMMA   shift, and go to state 123
+
+
+State 87
+
+   62 read_args: range_spec •
+
+    $default  reduce using rule 62 (read_args)
+
+
+State 88
+
+   59 read_args: expression •
+
+    $default  reduce using rule 59 (read_args)
+
+
+State 89
+
+  102 read_list: read_list COMMA • read_item
+
+    ID  shift, and go to state 57
+
+    array_reference  go to state 59
+    read_item        go to state 124
+
+
+State 90
+
+   64 write_statement: WRITE LPAREN STAR • COMMA STAR RPAREN write_list
+
+    COMMA  shift, and go to state 125
+
+
+State 91
+
+   98 primary: LPAREN • expression RPAREN
+  117 relational_expression: LPAREN • relational_expression RPAREN
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 91
+    NOT             shift, and go to state 92
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference        go to state 47
+    constant               go to state 48
+    binary_number          go to state 49
+    expression             go to state 81
+    simple_expression      go to state 98
+    term                   go to state 52
+    power_term             go to state 53
+    factor                 go to state 54
+    primary                go to state 55
+    relational_expression  go to state 126
+
+
+State 92
+
+  114 relational_expression: NOT • relational_expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 91
+    NOT             shift, and go to state 92
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference        go to state 79
+    constant               go to state 48
+    binary_number          go to state 49
+    simple_expression      go to state 93
+    term                   go to state 52
+    power_term             go to state 53
+    factor                 go to state 54
+    primary                go to state 55
+    relational_expression  go to state 127
+
+
+State 93
+
+   90 simple_expression: simple_expression • ADDOP term
+  112 relational_expression: simple_expression •
+  113                      | simple_expression • relop simple_expression
+
+    ADDOP  shift, and go to state 82
+    GT     shift, and go to state 128
+    LT     shift, and go to state 129
+    EQ     shift, and go to state 130
+    LE     shift, and go to state 131
+
+    $default  reduce using rule 112 (relational_expression)
+
+    relop  go to state 132
+
+
+State 94
+
+   35 if_statement: IF LPAREN relational_expression • RPAREN statement
+   36             | IF LPAREN relational_expression • RPAREN THEN block ENDIF
+   37             | IF LPAREN relational_expression • RPAREN THEN block ELSE block ENDIF
+  115 relational_expression: relational_expression • AND relational_expression
+  116                      | relational_expression • OR relational_expression
+
+    RPAREN  shift, and go to state 133
+    AND     shift, and go to state 134
+    OR      shift, and go to state 135
+
+
+State 95
+
+   43 do_control: ID ASSIGN • expression COMMA expression
+   44           | ID ASSIGN • expression COMMA expression COMMA expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 136
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 96
+
+   39 block: block • declaration
+   40      | block • labeled_statement
+   41      | block • unlabeled_statement
+   42 do_statement: DO do_control block • ENDDO
+
+    INTEGER    shift, and go to state 5
+    REAL       shift, and go to state 6
+    COMPLEX    shift, and go to state 7
+    LOGICAL    shift, and go to state 8
+    CHARACTER  shift, and go to state 9
+    STRING     shift, and go to state 10
+    DATA       shift, and go to state 11
+    CONTINUE   shift, and go to state 12
+    GOTO       shift, and go to state 13
+    CALL       shift, and go to state 14
+    READ       shift, and go to state 15
+    WRITE      shift, and go to state 16
+    IF         shift, and go to state 17
+    DO         shift, and go to state 18
+    ENDDO      shift, and go to state 137
+    STOP       shift, and go to state 19
+    RETURN     shift, and go to state 20
+    LABEL      shift, and go to state 21
+    ID         shift, and go to state 22
+
+    declaration           go to state 138
+    type                  go to state 24
+    labeled_statement     go to state 139
+    unlabeled_statement   go to state 140
+    assignment_statement  go to state 28
+    if_statement          go to state 29
+    do_statement          go to state 30
+    array_reference       go to state 31
+    call_statement        go to state 32
+    goto_statement        go to state 33
+    read_statement        go to state 34
+    write_statement       go to state 35
+
+
+State 97
+
+   31 assignment_statement: ID ASSIGN expression •
+
+    $default  reduce using rule 31 (assignment_statement)
+
+
+State 98
+
+   86 expression: simple_expression •
+   90 simple_expression: simple_expression • ADDOP term
+  112 relational_expression: simple_expression •
+  113                      | simple_expression • relop simple_expression
+
+    ADDOP  shift, and go to state 82
+    GT     shift, and go to state 128
+    LT     shift, and go to state 129
+    EQ     shift, and go to state 130
+    LE     shift, and go to state 131
+
+    END        reduce using rule 86 (expression)
+    END        [reduce using rule 112 (relational_expression)]
+    INTEGER    reduce using rule 86 (expression)
+    INTEGER    [reduce using rule 112 (relational_expression)]
+    REAL       reduce using rule 86 (expression)
+    REAL       [reduce using rule 112 (relational_expression)]
+    COMPLEX    reduce using rule 86 (expression)
+    COMPLEX    [reduce using rule 112 (relational_expression)]
+    LOGICAL    reduce using rule 86 (expression)
+    LOGICAL    [reduce using rule 112 (relational_expression)]
+    CHARACTER  reduce using rule 86 (expression)
+    CHARACTER  [reduce using rule 112 (relational_expression)]
+    STRING     reduce using rule 86 (expression)
+    STRING     [reduce using rule 112 (relational_expression)]
+    DATA       reduce using rule 86 (expression)
+    DATA       [reduce using rule 112 (relational_expression)]
+    CONTINUE   reduce using rule 86 (expression)
+    CONTINUE   [reduce using rule 112 (relational_expression)]
+    GOTO       reduce using rule 86 (expression)
+    GOTO       [reduce using rule 112 (relational_expression)]
+    CALL       reduce using rule 86 (expression)
+    CALL       [reduce using rule 112 (relational_expression)]
+    READ       reduce using rule 86 (expression)
+    READ       [reduce using rule 112 (relational_expression)]
+    WRITE      reduce using rule 86 (expression)
+    WRITE      [reduce using rule 112 (relational_expression)]
+    IF         reduce using rule 86 (expression)
+    IF         [reduce using rule 112 (relational_expression)]
+    ELSE       reduce using rule 86 (expression)
+    ELSE       [reduce using rule 112 (relational_expression)]
+    ENDIF      reduce using rule 86 (expression)
+    ENDIF      [reduce using rule 112 (relational_expression)]
+    DO         reduce using rule 86 (expression)
+    DO         [reduce using rule 112 (relational_expression)]
+    ENDDO      reduce using rule 86 (expression)
+    ENDDO      [reduce using rule 112 (relational_expression)]
+    STOP       reduce using rule 86 (expression)
+    STOP       [reduce using rule 112 (relational_expression)]
+    RETURN     reduce using rule 86 (expression)
+    RETURN     [reduce using rule 112 (relational_expression)]
+    LABEL      reduce using rule 86 (expression)
+    LABEL      [reduce using rule 112 (relational_expression)]
+    ID         reduce using rule 86 (expression)
+    ID         [reduce using rule 112 (relational_expression)]
+    RPAREN     reduce using rule 86 (expression)
+    RPAREN     [reduce using rule 112 (relational_expression)]
+    AND        reduce using rule 112 (relational_expression)
+    OR         reduce using rule 112 (relational_expression)
+    $default   reduce using rule 86 (expression)
+
+    relop  go to state 132
+
+
+State 99
+
+   34 assignment_statement: ID ASSIGN relational_expression •
+  115 relational_expression: relational_expression • AND relational_expression
+  116                      | relational_expression • OR relational_expression
+
+    AND  shift, and go to state 134
+    OR   shift, and go to state 135
+
+    $default  reduce using rule 34 (assignment_statement)
+
+
+State 100
+
+   46 array_reference: ID LPAREN RPAREN •
+
+    $default  reduce using rule 46 (array_reference)
+
+
+State 101
+
+   45 array_reference: ID LPAREN argument_list • RPAREN
+   48 argument_list: argument_list • COMMA expression
+
+    RPAREN  shift, and go to state 141
+    COMMA   shift, and go to state 142
+
+
+State 102
+
+   47 argument_list: expression •
+
+    $default  reduce using rule 47 (argument_list)
+
+
+State 103
+
+    6 declaration: type LIST declarator_list •
+   15 declarator_list: declarator_list • COMMA declarator
+
+    COMMA  shift, and go to state 105
+
+    $default  reduce using rule 6 (declaration)
+
+
+State 104
+
+   17 declarator: ID LPAREN • expression RPAREN
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 143
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 105
+
+   15 declarator_list: declarator_list COMMA • declarator
+
+    ID  shift, and go to state 70
+
+    declarator  go to state 144
+
+
+State 106
+
+   32 assignment_statement: array_reference ASSIGN expression •
+
+    $default  reduce using rule 32 (assignment_statement)
+
+
+State 107
+
+   33 assignment_statement: array_reference ASSIGN relational_expression •
+  115 relational_expression: relational_expression • AND relational_expression
+  116                      | relational_expression • OR relational_expression
+
+    AND  shift, and go to state 134
+    OR   shift, and go to state 135
+
+    $default  reduce using rule 33 (assignment_statement)
+
+
+State 108
+
+   72 value: LPAREN • range_pair RPAREN
+
+    ICONST  shift, and go to state 145
+    RCONST  shift, and go to state 146
+    ADDOP   shift, and go to state 147
+
+    range_pair  go to state 148
+    number      go to state 149
+
+
+State 109
+
+   73 value: STAR • STRING_LITERAL
+
+    STRING_LITERAL  shift, and go to state 150
+
+
+State 110
+
+   67 data_item: ID DIVOP value_list • DIVOP
+   69 value_list: value_list • COMMA value
+   70           | value_list • COMMA STAR value
+
+    DIVOP  shift, and go to state 151
+    COMMA  shift, and go to state 152
+
+
+State 111
+
+   68 value_list: value •
+
+    $default  reduce using rule 68 (value_list)
+
+
+State 112
+
+   71 value: constant •
+
+    $default  reduce using rule 71 (value)
+
+
+State 113
+
+   66 data_list: data_list COMMA data_item •
+
+    $default  reduce using rule 66 (data_list)
+
+
+State 114
+
+   55 goto_statement: GOTO ID COMMA LPAREN • label_list RPAREN
+
+    ICONST  shift, and go to state 153
+
+    label_list  go to state 154
+
+
+State 115
+
+   85 binary_number: ICONST ID RCONST •
+
+    $default  reduce using rule 85 (binary_number)
+
+
+State 116
+
+   98 primary: LPAREN expression RPAREN •
+
+    $default  reduce using rule 98 (primary)
+
+
+State 117
+
+   90 simple_expression: simple_expression ADDOP term •
+
+    $default  reduce using rule 90 (simple_expression)
+
+
+State 118
+
+   93 power_term: factor POWEROP expression •
+
+    $default  reduce using rule 93 (power_term)
+
+
+State 119
+
+   52 call_statement: CALL ID LPAREN RPAREN •
+
+    $default  reduce using rule 52 (call_statement)
+
+
+State 120
+
+   48 argument_list: argument_list • COMMA expression
+   51 call_statement: CALL ID LPAREN argument_list • RPAREN
+
+    RPAREN  shift, and go to state 155
+    COMMA   shift, and go to state 142
+
+
+State 121
+
+   63 range_spec: ID ASSIGN • expression COMMA expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 156
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 122
+
+   57 read_statement: READ LPAREN read_args RPAREN • read_list
+   58               | READ LPAREN read_args RPAREN • COMMA read_list
+
+    ID     shift, and go to state 57
+    COMMA  shift, and go to state 157
+
+    array_reference  go to state 59
+    read_list        go to state 158
+    read_item        go to state 61
+
+
+State 123
+
+   60 read_args: read_args COMMA • expression
+   61          | read_args COMMA • range_spec
+
+    ID              shift, and go to state 85
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    range_spec         go to state 159
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 160
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 124
+
+  102 read_list: read_list COMMA read_item •
+
+    $default  reduce using rule 102 (read_list)
+
+
+State 125
+
+   64 write_statement: WRITE LPAREN STAR COMMA • STAR RPAREN write_list
+
+    STAR  shift, and go to state 161
+
+
+State 126
+
+  115 relational_expression: relational_expression • AND relational_expression
+  116                      | relational_expression • OR relational_expression
+  117                      | LPAREN relational_expression • RPAREN
+
+    RPAREN  shift, and go to state 162
+    AND     shift, and go to state 134
+    OR      shift, and go to state 135
+
+
+State 127
+
+  114 relational_expression: NOT relational_expression •
+  115                      | relational_expression • AND relational_expression
+  116                      | relational_expression • OR relational_expression
+
+    $default  reduce using rule 114 (relational_expression)
+
+
+State 128
+
+  110 relop: GT •
+
+    $default  reduce using rule 110 (relop)
+
+
+State 129
+
+  109 relop: LT •
+
+    $default  reduce using rule 109 (relop)
+
+
+State 130
+
+  108 relop: EQ •
+
+    $default  reduce using rule 108 (relop)
+
+
+State 131
+
+  111 relop: LE •
+
+    $default  reduce using rule 111 (relop)
+
+
+State 132
+
+  113 relational_expression: simple_expression relop • simple_expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 79
+    constant           go to state 48
+    binary_number      go to state 49
+    simple_expression  go to state 163
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 133
+
+   35 if_statement: IF LPAREN relational_expression RPAREN • statement
+   36             | IF LPAREN relational_expression RPAREN • THEN block ENDIF
+   37             | IF LPAREN relational_expression RPAREN • THEN block ELSE block ENDIF
+
+    CONTINUE  shift, and go to state 12
+    GOTO      shift, and go to state 13
+    CALL      shift, and go to state 14
+    READ      shift, and go to state 15
+    WRITE     shift, and go to state 16
+    IF        shift, and go to state 17
+    THEN      shift, and go to state 164
+    DO        shift, and go to state 18
+    STOP      shift, and go to state 19
+    RETURN    shift, and go to state 20
+    LABEL     shift, and go to state 21
+    ID        shift, and go to state 22
+
+    statement             go to state 165
+    labeled_statement     go to state 26
+    unlabeled_statement   go to state 27
+    assignment_statement  go to state 28
+    if_statement          go to state 29
+    do_statement          go to state 30
+    array_reference       go to state 31
+    call_statement        go to state 32
+    goto_statement        go to state 33
+    read_statement        go to state 34
+    write_statement       go to state 35
+
+
+State 134
+
+  115 relational_expression: relational_expression AND • relational_expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 91
+    NOT             shift, and go to state 92
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference        go to state 79
+    constant               go to state 48
+    binary_number          go to state 49
+    simple_expression      go to state 93
+    term                   go to state 52
+    power_term             go to state 53
+    factor                 go to state 54
+    primary                go to state 55
+    relational_expression  go to state 166
+
+
+State 135
+
+  116 relational_expression: relational_expression OR • relational_expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 91
+    NOT             shift, and go to state 92
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference        go to state 79
+    constant               go to state 48
+    binary_number          go to state 49
+    simple_expression      go to state 93
+    term                   go to state 52
+    power_term             go to state 53
+    factor                 go to state 54
+    primary                go to state 55
+    relational_expression  go to state 167
+
+
+State 136
+
+   43 do_control: ID ASSIGN expression • COMMA expression
+   44           | ID ASSIGN expression • COMMA expression COMMA expression
+
+    COMMA  shift, and go to state 168
+
+
+State 137
+
+   42 do_statement: DO do_control block ENDDO •
+
+    $default  reduce using rule 42 (do_statement)
+
+
+State 138
+
+   39 block: block declaration •
+
+    $default  reduce using rule 39 (block)
+
+
+State 139
+
+   40 block: block labeled_statement •
+
+    $default  reduce using rule 40 (block)
+
+
+State 140
+
+   41 block: block unlabeled_statement •
+
+    $default  reduce using rule 41 (block)
+
+
+State 141
+
+   45 array_reference: ID LPAREN argument_list RPAREN •
+
+    $default  reduce using rule 45 (array_reference)
+
+
+State 142
+
+   48 argument_list: argument_list COMMA • expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 169
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 143
+
+   17 declarator: ID LPAREN expression • RPAREN
+
+    RPAREN  shift, and go to state 170
+
+
+State 144
+
+   15 declarator_list: declarator_list COMMA declarator •
+
+    $default  reduce using rule 15 (declarator_list)
+
+
+State 145
+
+   76 number: ICONST •
+
+    $default  reduce using rule 76 (number)
+
+
+State 146
+
+   75 number: RCONST •
+
+    $default  reduce using rule 75 (number)
+
+
+State 147
+
+   77 number: ADDOP • RCONST
+   78       | ADDOP • ICONST
+
+    ICONST  shift, and go to state 171
+    RCONST  shift, and go to state 172
+
+
+State 148
+
+   72 value: LPAREN range_pair • RPAREN
+
+    RPAREN  shift, and go to state 173
+
+
+State 149
+
+   74 range_pair: number • COLON number
+
+    COLON  shift, and go to state 174
+
+
+State 150
+
+   73 value: STAR STRING_LITERAL •
+
+    $default  reduce using rule 73 (value)
+
+
+State 151
+
+   67 data_item: ID DIVOP value_list DIVOP •
+
+    $default  reduce using rule 67 (data_item)
+
+
+State 152
+
+   69 value_list: value_list COMMA • value
+   70           | value_list COMMA • STAR value
+
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    LPAREN          shift, and go to state 108
+    STAR            shift, and go to state 175
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    value          go to state 176
+    constant       go to state 112
+    binary_number  go to state 49
+
+
+State 153
+
+   99 label_list: ICONST •
+
+    $default  reduce using rule 99 (label_list)
+
+
+State 154
+
+   55 goto_statement: GOTO ID COMMA LPAREN label_list • RPAREN
+  100 label_list: label_list • COMMA ICONST
+
+    RPAREN  shift, and go to state 177
+    COMMA   shift, and go to state 178
+
+
+State 155
+
+   51 call_statement: CALL ID LPAREN argument_list RPAREN •
+
+    $default  reduce using rule 51 (call_statement)
+
+
+State 156
+
+   63 range_spec: ID ASSIGN expression • COMMA expression
+
+    COMMA  shift, and go to state 179
+
+
+State 157
+
+   58 read_statement: READ LPAREN read_args RPAREN COMMA • read_list
+
+    ID  shift, and go to state 57
+
+    array_reference  go to state 59
+    read_list        go to state 180
+    read_item        go to state 61
+
+
+State 158
+
+   57 read_statement: READ LPAREN read_args RPAREN read_list •
+  102 read_list: read_list • COMMA read_item
+
+    COMMA  shift, and go to state 89
+
+    $default  reduce using rule 57 (read_statement)
+
+
+State 159
+
+   61 read_args: read_args COMMA range_spec •
+
+    $default  reduce using rule 61 (read_args)
+
+
+State 160
+
+   60 read_args: read_args COMMA expression •
+
+    $default  reduce using rule 60 (read_args)
+
+
+State 161
+
+   64 write_statement: WRITE LPAREN STAR COMMA STAR • RPAREN write_list
+
+    RPAREN  shift, and go to state 181
+
+
+State 162
+
+  117 relational_expression: LPAREN relational_expression RPAREN •
+
+    $default  reduce using rule 117 (relational_expression)
+
+
+State 163
+
+   90 simple_expression: simple_expression • ADDOP term
+  113 relational_expression: simple_expression relop simple_expression •
+
+    ADDOP  shift, and go to state 82
+
+    $default  reduce using rule 113 (relational_expression)
+
+
+State 164
+
+   36 if_statement: IF LPAREN relational_expression RPAREN THEN • block ENDIF
+   37             | IF LPAREN relational_expression RPAREN THEN • block ELSE block ENDIF
+
+    $default  reduce using rule 38 (block)
+
+    block  go to state 182
+
+
+State 165
+
+   35 if_statement: IF LPAREN relational_expression RPAREN statement •
+
+    $default  reduce using rule 35 (if_statement)
+
+
+State 166
+
+  115 relational_expression: relational_expression • AND relational_expression
+  115                      | relational_expression AND relational_expression •
+  116                      | relational_expression • OR relational_expression
+
+    $default  reduce using rule 115 (relational_expression)
+
+
+State 167
+
+  115 relational_expression: relational_expression • AND relational_expression
+  116                      | relational_expression • OR relational_expression
+  116                      | relational_expression OR relational_expression •
+
+    AND  shift, and go to state 134
+
+    $default  reduce using rule 116 (relational_expression)
+
+
+State 168
+
+   43 do_control: ID ASSIGN expression COMMA • expression
+   44           | ID ASSIGN expression COMMA • expression COMMA expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 183
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 169
+
+   48 argument_list: argument_list COMMA expression •
+
+    $default  reduce using rule 48 (argument_list)
+
+
+State 170
+
+   17 declarator: ID LPAREN expression RPAREN •
+
+    $default  reduce using rule 17 (declarator)
+
+
+State 171
+
+   78 number: ADDOP ICONST •
+
+    $default  reduce using rule 78 (number)
+
+
+State 172
+
+   77 number: ADDOP RCONST •
+
+    $default  reduce using rule 77 (number)
+
+
+State 173
+
+   72 value: LPAREN range_pair RPAREN •
+
+    $default  reduce using rule 72 (value)
+
+
+State 174
+
+   74 range_pair: number COLON • number
+
+    ICONST  shift, and go to state 145
+    RCONST  shift, and go to state 146
+    ADDOP   shift, and go to state 147
+
+    number  go to state 184
+
+
+State 175
+
+   70 value_list: value_list COMMA STAR • value
+   73 value: STAR • STRING_LITERAL
+
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 185
+    LPAREN          shift, and go to state 108
+    STAR            shift, and go to state 109
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    value          go to state 186
+    constant       go to state 112
+    binary_number  go to state 49
+
+
+State 176
+
+   69 value_list: value_list COMMA value •
+
+    $default  reduce using rule 69 (value_list)
+
+
+State 177
+
+   55 goto_statement: GOTO ID COMMA LPAREN label_list RPAREN •
+
+    $default  reduce using rule 55 (goto_statement)
+
+
+State 178
+
+  100 label_list: label_list COMMA • ICONST
+
+    ICONST  shift, and go to state 187
+
+
+State 179
+
+   63 range_spec: ID ASSIGN expression COMMA • expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 188
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 180
+
+   58 read_statement: READ LPAREN read_args RPAREN COMMA read_list •
+  102 read_list: read_list • COMMA read_item
+
+    COMMA  shift, and go to state 89
+
+    $default  reduce using rule 58 (read_statement)
+
+
+State 181
+
+   64 write_statement: WRITE LPAREN STAR COMMA STAR RPAREN • write_list
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 189
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+    write_list         go to state 190
+    write_item         go to state 191
+
+
+State 182
+
+   36 if_statement: IF LPAREN relational_expression RPAREN THEN block • ENDIF
+   37             | IF LPAREN relational_expression RPAREN THEN block • ELSE block ENDIF
+   39 block: block • declaration
+   40      | block • labeled_statement
+   41      | block • unlabeled_statement
+
+    INTEGER    shift, and go to state 5
+    REAL       shift, and go to state 6
+    COMPLEX    shift, and go to state 7
+    LOGICAL    shift, and go to state 8
+    CHARACTER  shift, and go to state 9
+    STRING     shift, and go to state 10
+    DATA       shift, and go to state 11
+    CONTINUE   shift, and go to state 12
+    GOTO       shift, and go to state 13
+    CALL       shift, and go to state 14
+    READ       shift, and go to state 15
+    WRITE      shift, and go to state 16
+    IF         shift, and go to state 17
+    ELSE       shift, and go to state 192
+    ENDIF      shift, and go to state 193
+    DO         shift, and go to state 18
+    STOP       shift, and go to state 19
+    RETURN     shift, and go to state 20
+    LABEL      shift, and go to state 21
+    ID         shift, and go to state 22
+
+    declaration           go to state 138
+    type                  go to state 24
+    labeled_statement     go to state 139
+    unlabeled_statement   go to state 140
+    assignment_statement  go to state 28
+    if_statement          go to state 29
+    do_statement          go to state 30
+    array_reference       go to state 31
+    call_statement        go to state 32
+    goto_statement        go to state 33
+    read_statement        go to state 34
+    write_statement       go to state 35
+
+
+State 183
+
+   43 do_control: ID ASSIGN expression COMMA expression •
+   44           | ID ASSIGN expression COMMA expression • COMMA expression
+
+    COMMA  shift, and go to state 194
+
+    $default  reduce using rule 43 (do_control)
+
+
+State 184
+
+   74 range_pair: number COLON number •
+
+    $default  reduce using rule 74 (range_pair)
+
+
+State 185
+
+   73 value: STAR STRING_LITERAL •
+   83 constant: STRING_LITERAL •
+
+    DIVOP     reduce using rule 73 (value)
+    DIVOP     [reduce using rule 83 (constant)]
+    COMMA     reduce using rule 73 (value)
+    COMMA     [reduce using rule 83 (constant)]
+    $default  reduce using rule 73 (value)
+
+
+State 186
+
+   70 value_list: value_list COMMA STAR value •
+
+    $default  reduce using rule 70 (value_list)
+
+
+State 187
+
+  100 label_list: label_list COMMA ICONST •
+
+    $default  reduce using rule 100 (label_list)
+
+
+State 188
+
+   63 range_spec: ID ASSIGN expression COMMA expression •
+
+    $default  reduce using rule 63 (range_spec)
+
+
+State 189
+
+  107 write_item: expression •
+
+    $default  reduce using rule 107 (write_item)
+
+
+State 190
+
+   64 write_statement: WRITE LPAREN STAR COMMA STAR RPAREN write_list •
+  106 write_list: write_list • COMMA write_item
+
+    COMMA  shift, and go to state 195
+
+    $default  reduce using rule 64 (write_statement)
+
+
+State 191
+
+  105 write_list: write_item •
+
+    $default  reduce using rule 105 (write_list)
+
+
+State 192
+
+   37 if_statement: IF LPAREN relational_expression RPAREN THEN block ELSE • block ENDIF
+
+    $default  reduce using rule 38 (block)
+
+    block  go to state 196
+
+
+State 193
+
+   36 if_statement: IF LPAREN relational_expression RPAREN THEN block ENDIF •
+
+    $default  reduce using rule 36 (if_statement)
+
+
+State 194
+
+   44 do_control: ID ASSIGN expression COMMA expression COMMA • expression
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 197
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+
+
+State 195
+
+  106 write_list: write_list COMMA • write_item
+
+    ID              shift, and go to state 78
+    ICONST          shift, and go to state 40
+    RCONST          shift, and go to state 41
+    STRING_LITERAL  shift, and go to state 42
+    ADDOP           shift, and go to state 43
+    LPAREN          shift, and go to state 44
+    TRUE            shift, and go to state 45
+    FALSE           shift, and go to state 46
+
+    array_reference    go to state 47
+    constant           go to state 48
+    binary_number      go to state 49
+    expression         go to state 189
+    simple_expression  go to state 51
+    term               go to state 52
+    power_term         go to state 53
+    factor             go to state 54
+    primary            go to state 55
+    write_item         go to state 198
+
+
+State 196
+
+   37 if_statement: IF LPAREN relational_expression RPAREN THEN block ELSE block • ENDIF
+   39 block: block • declaration
+   40      | block • labeled_statement
+   41      | block • unlabeled_statement
+
+    INTEGER    shift, and go to state 5
+    REAL       shift, and go to state 6
+    COMPLEX    shift, and go to state 7
+    LOGICAL    shift, and go to state 8
+    CHARACTER  shift, and go to state 9
+    STRING     shift, and go to state 10
+    DATA       shift, and go to state 11
+    CONTINUE   shift, and go to state 12
+    GOTO       shift, and go to state 13
+    CALL       shift, and go to state 14
+    READ       shift, and go to state 15
+    WRITE      shift, and go to state 16
+    IF         shift, and go to state 17
+    ENDIF      shift, and go to state 199
+    DO         shift, and go to state 18
+    STOP       shift, and go to state 19
+    RETURN     shift, and go to state 20
+    LABEL      shift, and go to state 21
+    ID         shift, and go to state 22
+
+    declaration           go to state 138
+    type                  go to state 24
+    labeled_statement     go to state 139
+    unlabeled_statement   go to state 140
+    assignment_statement  go to state 28
+    if_statement          go to state 29
+    do_statement          go to state 30
+    array_reference       go to state 31
+    call_statement        go to state 32
+    goto_statement        go to state 33
+    read_statement        go to state 34
+    write_statement       go to state 35
+
+
+State 197
+
+   44 do_control: ID ASSIGN expression COMMA expression COMMA expression •
+
+    $default  reduce using rule 44 (do_control)
+
+
+State 198
+
+  106 write_list: write_list COMMA write_item •
+
+    $default  reduce using rule 106 (write_list)
+
+
+State 199
+
+   37 if_statement: IF LPAREN relational_expression RPAREN THEN block ELSE block ENDIF •
+
+    $default  reduce using rule 37 (if_statement)
