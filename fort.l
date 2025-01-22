@@ -2,209 +2,132 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "intermediate.h"
+#include <ctype.h>
+#include "types.h"
 #include "fort.tab.h"
+#include "symtab.h"
+#include "error.h"
+#include "globals.h"
+#include "token_buffer.h"
 
-int line_number = 1;
-int in_write = 0;  /* Flag για να ξέρουμε αν είμαστε μέσα σε WRITE statement */
-int in_data = 0;   /* Flag για DATA statement */
-char line_buf[1024] = "";  /* Buffer για την τρέχουσα γραμμή */
-int line_pos = 0;          /* Θέση στο line_buf */
-int collecting_line = 1;   /* Flag για να ελέγχουμε αν συλλέγουμε γραμμή */
-int error_count = 0;       /* Μετρητής λαθών */
+/* Error types */
+#define ERR_LEXICAL 1
+#define ERR_SYNTAX  2
+#define ERR_SEMANTIC 3
+#define SEV_ERROR   1
+#define SEV_WARNING 2
 
-/* Function για αναφορά λεκτικών λαθών */
-void lexical_error(const char* msg) {
-    fprintf(stderr, "Lexical error at line %d: %s\n", line_number, msg);
-    fprintf(stderr, "Line: %s\n", line_buf);
-    fprintf(stderr, "      ");
-    for(int i=0; i < line_pos-yyleng; i++) fprintf(stderr, " ");
-    fprintf(stderr, "^\n");
-    error_count++;
+/* Ensure proper handling of tokens */
+#define YY_NO_UNPUT
+#define YY_NO_INPUT
+#define YY_DECL int yylex(void)
+
+int column = 1;
+
+#define DEBUG_TOKEN(name) if(debug_lexer) printf("Token: %s [%s]\n", name, yytext)
+
+/* Override the default YY_INPUT to check buffered tokens first */
+#define YY_INPUT(buf,result,max_size) { \
+    int tok = get_buffered_token(); \
+    if (tok) { \
+        buf[0] = tok; \
+        result = 1; \
+    } else { \
+        errno=0; \
+        while ((result = (int) fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) { \
+            if (errno != EINTR) { \
+                YY_FATAL_ERROR("input in flex scanner failed"); \
+                break; \
+            } \
+            errno=0; \
+            clearerr(yyin); \
+        } \
+    } \
 }
+
 %}
 
-/* Ορισμοί για αναγνώριση αριθμών σε διάφορες βάσεις */
+%option noyywrap
+%option yylineno
+%option nounput
+%option never-interactive
+%option case-insensitive
+
 DIGIT       [0-9]
-NONZERO     [1-9]
-HEXDIGIT    [0-9A-Fa-f]
-OCTDIGIT    [0-7]
-BINDIGIT    [01]
-ID_START    [A-Za-z]
-ID_CHAR     [A-Za-z0-9_]
+LETTER      [a-z]
+ID          {LETTER}[a-z0-9_]*
+WS          [ \t\r]
+NEWLINE     \n
+INTEGER     {DIGIT}+
+REAL        {DIGIT}+"."{DIGIT}*([Ee][+-]?{DIGIT}+)?|{DIGIT}*"."{DIGIT}+([Ee][+-]?{DIGIT}+)?
+HEX         0[xX][0-9A-Fa-f]+
+OCT         0[oO][0-7]+
+BIN         0[bB][01]+
+STRING      \"[^\"]*\"
 
 %%
 
-    /* Σχόλια - δεν αυξάνουμε το line_number εδώ γιατί θα το κάνει ο \n κανόνας */
-^[Cc*].*\n      { line_number++; }
-"$"[^\n]*\n    { 
-    /* Έλεγχος για σωστή σύνταξη σχολίων */
-    char *comment = yytext + 1; /* Παραλείπουμε το $ */
-    while (*comment == ' ' || *comment == '\t') comment++; /* Παραλείπουμε τα whitespace */
-    if (*comment == '\n') {
-        fprintf(stderr, "Warning: Empty comment at line %d\n", line_number);
-        fprintf(stderr, "Comments should contain text after the $ symbol\n");
-        fprintf(stderr, "Found: %s", yytext);
-    }
-    line_number++; 
-}
-[ \t]+          /* ignore whitespace */ ;
-\n              { line_number++; }
+"PROGRAM"      { DEBUG_TOKEN("PROGRAM"); return PROGRAM; }
+"END"          { DEBUG_TOKEN("END"); return END; }
+"INTEGER"      { DEBUG_TOKEN("INTEGER"); return INTEGER; }
+"REAL"         { DEBUG_TOKEN("REAL"); return REAL; }
+"COMPLEX"      { DEBUG_TOKEN("COMPLEX"); return COMPLEX; }
+"LOGICAL"      { DEBUG_TOKEN("LOGICAL"); return LOGICAL; }
+"CHARACTER"    { DEBUG_TOKEN("CHARACTER"); return CHARACTER; }
+"STRING"       { DEBUG_TOKEN("STRING"); return STRING; }
+"DATA"         { DEBUG_TOKEN("DATA"); return DATA; }
+"COMMON"       { DEBUG_TOKEN("COMMON"); return COMMON; }
+"IF"           { DEBUG_TOKEN("IF"); return IF; }
+"THEN"         { DEBUG_TOKEN("THEN"); return THEN; }
+"ELSE"         { DEBUG_TOKEN("ELSE"); return ELSE; }
+"ENDIF"        { DEBUG_TOKEN("ENDIF"); return ENDIF; }
+"DO"           { DEBUG_TOKEN("DO"); return DO; }
+"ENDDO"        { DEBUG_TOKEN("ENDDO"); return ENDDO; }
+"READ"         { DEBUG_TOKEN("READ"); return READ; }
+"WRITE"        { DEBUG_TOKEN("WRITE"); return WRITE; }
+"CALL"         { DEBUG_TOKEN("CALL"); return CALL; }
+"RETURN"       { DEBUG_TOKEN("RETURN"); return RETURN; }
+"STOP"         { DEBUG_TOKEN("STOP"); return STOP; }
+"CONTINUE"     { DEBUG_TOKEN("CONTINUE"); return CONTINUE; }
+"GOTO"         { DEBUG_TOKEN("GOTO"); return GOTO; }
+"FUNCTION"     { DEBUG_TOKEN("FUNCTION"); return FUNCTION; }
+"SUBROUTINE"   { DEBUG_TOKEN("SUBROUTINE"); return SUBROUTINE; }
 
-    /* Λτικέτες */
-^{DIGIT}+       { yylval.ival = atoi(yytext); return LABEL; }
+"$"            { DEBUG_TOKEN("DOLLAR"); return DOLLAR; }
+{INTEGER}      { yylval.sval = strdup(yytext); DEBUG_TOKEN("ICONST"); return ICONST; }
+{REAL}         { yylval.sval = strdup(yytext); DEBUG_TOKEN("RCONST"); return RCONST; }
+{STRING}       { yylval.sval = strdup(yytext); DEBUG_TOKEN("STRING_LITERAL"); return STRING_LITERAL; }
+"*"            { DEBUG_TOKEN("STAR"); return STAR; }
+"/"            { DEBUG_TOKEN("SLASH"); return SLASH; }
+","            { DEBUG_TOKEN("COMMA"); return COMMA; }
+"("            { DEBUG_TOKEN("LPAREN"); return LPAREN; }
+")"            { DEBUG_TOKEN("RPAREN"); return RPAREN; }
+"["            { DEBUG_TOKEN("LBRACKET"); return LBRACKET; }
+"]"            { DEBUG_TOKEN("RBRACKET"); return RBRACKET; }
+"="            { DEBUG_TOKEN("ASSIGN"); return ASSIGN; }
+"+"            { DEBUG_TOKEN("PLUS"); return PLUS; }
+"-"            { DEBUG_TOKEN("MINUS"); return MINUS; }
+"**"           { DEBUG_TOKEN("POWER"); return POWER; }
+".AND."        { DEBUG_TOKEN("AND"); return AND; }
+".OR."         { DEBUG_TOKEN("OR"); return OR; }
+".NOT."        { DEBUG_TOKEN("NOT"); return NOT; }
+".GT."         { DEBUG_TOKEN("GT"); return GT; }
+".LT."         { DEBUG_TOKEN("LT"); return LT; }
+".GE."         { DEBUG_TOKEN("GE"); return GE; }
+".LE."         { DEBUG_TOKEN("LE"); return LE; }
+".EQ."         { DEBUG_TOKEN("EQ"); return EQ; }
+".NE."         { DEBUG_TOKEN("NE"); return NE; }
+".TRUE."       { DEBUG_TOKEN("TRUE"); return TRUE; }
+".FALSE."      { DEBUG_TOKEN("FALSE"); return FALSE; }
 
-    /* Λέξεις-κλειδιά - case insensitive */
-(?i:PROGRAM)    { return PROGRAM; }
-(?i:FUNCTION)   { return FUNCTION; }
-(?i:SUBROUTINE) { return SUBROUTINE; }
-(?i:END)        { return END; }
-(?i:COMMON)     { return COMMON; }
-(?i:INTEGER)    { return INTEGER; }
-(?i:REAL)       { return REAL; }
-(?i:COMPLEX)    { return COMPLEX; }
-(?i:LOGICAL)    { return LOGICAL; }
-(?i:CHARACTER)  { return CHARACTER; }
-(?i:STRING)     { return STRING; }
-(?i:LIST)       { return LIST; }
-(?i:DATA)       { in_data = 1; return DATA; }
-(?i:CONTINUE)   { return CONTINUE; }
-(?i:GOTO)       { return GOTO; }
-(?i:CALL)       { return CALL; }
-(?i:READ)       { return READ; }
-(?i:WRITE)      { in_write = 1; return WRITE; }
-(?i:IF)         { return IF; }
-(?i:THEN)       { return THEN; }
-(?i:ELSE)       { return ELSE; }
-(?i:ENDIF)      { return ENDIF; }
-(?i:DO)         { return DO; }
-(?i:ENDDO)      { return ENDDO; }
-(?i:STOP)       { return STOP; }
-(?i:RETURN)     { return RETURN; }
-
-    /* Λογικοί τελεστές */
-"\.not\."      { return NOT; }
-"\.and\."      { return AND; }
-"\.or\."       { return OR; }
-"\.gt\."       { return GT; }
-"\.lt\."       { return LT; }
-"\.eq\."       { return EQ; }
-"\.le\."       { return LE; }
-"\.true\."     { return TRUE; }
-"\.false\."    { return FALSE; }
-
-    /* Ακέραιες σταθερές */
-0               { yylval.ival = 0; return ICONST; }
-{NONZERO}{DIGIT}* { yylval.ival = atoi(yytext); return ICONST; }
-0[Xx]{HEXDIGIT}+ { yylval.ival = strtol(yytext, NULL, 16); return ICONST; }
-0[Oo]{OCTDIGIT}+ { yylval.ival = strtol(yytext+2, NULL, 8); return ICONST; }
-0[Bb]{BINDIGIT}+ { yylval.ival = strtol(yytext+2, NULL, 2); return ICONST; }
-
-    /* Δυαδικές σταθερές με B suffix */
-[01]+B          { 
-    char* endptr;
-    yylval.ival = strtol(yytext, &endptr, 2);
-    return ICONST; 
-}
-[2-9][0-9]*B    { 
-    char msg[100];
-    snprintf(msg, sizeof(msg), "Invalid binary constant '%s' - binary constants must contain only 0s and 1s", yytext);
-    lexical_error(msg);
-    yylval.ival = 0;
-    return ICONST;
-}
-[01]+\.[0-9]*B  { 
-    char msg[100];
-    snprintf(msg, sizeof(msg), "Invalid binary constant '%s' - FORT does not support floating point binary numbers", yytext);
-    lexical_error(msg);
-    yylval.rval = 0.0;
-    return RCONST;
-}
-
-    /* Πραγματικές σταθερές */
-{DIGIT}+\.{DIGIT}*[Ee][+-]?{DIGIT}+ |    /* για 314.159E-31 */
-{DIGIT}+[Ee][+-]?{DIGIT}+ |              /* για 5E2 */
-{DIGIT}*\.{DIGIT}+[Ee][+-]?{DIGIT}+ |    /* για .314159E-31 */
-{DIGIT}+\.{DIGIT}* |                      /* για 5. και 5.0 */
-{DIGIT}*\.{DIGIT}+ { 
-    yylval.rval = atof(yytext); 
-    return RCONST; 
-}
-
-    /* Strings */
-\"[^\"]*\"     { 
-    yylval.sval = strdup(yytext+1);
-    yylval.sval[strlen(yylval.sval)-1] = '\0';
-    return STRING_LITERAL; 
-}
-
-    /* Αναγνωριστικά */
-{ID_START}{ID_CHAR}* {
-    char *p = yytext;
-    int len = strlen(p);
-    int has_underscore = 0;
-    int valid = 1;
-
-    /* Έλεγχος για διαδοχικά _ και _ στο τέλος */
-    for(int i = 0; i < len; i++) {
-        if (p[i] == '_') {
-            has_underscore = 1;
-            if (i < len-1 && p[i+1] == '_') {
-                valid = 0;
-                break;
-            }
-        }
-    }
-
-    /* Αν έχει _ πρέπει να τελειώνει σε _ */
-    if (has_underscore && p[len-1] != '_') {
-        valid = 0;
-    }
-
-    if (valid) {
-        yylval.sval = strdup(yytext);
-        return ID;
-    } else {
-        fprintf(stderr, "Lexical error at line %d: Invalid identifier '%s'\n", 
-               line_number, yytext);
-        fprintf(stderr, "Line: %s\n", line_buf);
-        fprintf(stderr, "      ");
-        for(int i=0; i < line_pos-yyleng; i++) fprintf(stderr, " ");
-        fprintf(stderr, "^\n");
-    }
-}
-
-    /* Τελεστές και σύμβολα */
-"("[ \t]*"="    { return LPAREN_ASSIGN; }
-"("             { return LPAREN; }
-"="             { return ASSIGN; }
-"+"             { return ADDOP; }
-"-"             { return ADDOP; }
-"*"             { 
-    if (in_write || in_data) {
-        return STAR;
-    } else {
-        return MULOP;
-    }
-}
-"/"             { return DIVOP; }
-"**"            { return POWEROP; }
-")"             { return RPAREN; }
-","             { return COMMA; }
-":"             { return COLON; }
-"_"             { return '_'; }
-
-    /* Χειρισμός σφαλμάτων */
-"["             { lexical_error("Invalid token '['"); }
-"]"             { lexical_error("Invalid token ']'"); }
-.               { 
-    char msg[100];
-    snprintf(msg, sizeof(msg), "Invalid character '%s'", yytext);
-    lexical_error(msg);
+{ID}           { yylval.sval = strdup(yytext); DEBUG_TOKEN("ID"); return ID; }
+{WS}           ; /* Skip whitespace */
+{NEWLINE}      { yylineno++; DEBUG_TOKEN("NEWLINE"); return NEWLINE; }
+.              { 
+    char error_msg[256];
+    snprintf(error_msg, sizeof(error_msg), 
+        "Invalid character '%c' at line %d", yytext[0], yylineno);
+    report_error(ERR_SYNTAX, SEV_ERROR, error_msg, NULL);
 }
 
 %%
-
-int yywrap(void) {
-    return 1;
-}

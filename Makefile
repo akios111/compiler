@@ -4,7 +4,7 @@ FLEX = flex
 BISON = bison
 LIBS = 
 
-OBJS = lex.yy.o fort.tab.o main.o optimization.o codegen.o symtab.o error.o
+OBJS = lex.yy.o fort.tab.o main.o optimization.o codegen.o symtab.o error.o globals.o error_recovery.o token_buffer.o parser_utils.o validation.o
 
 compiler: $(OBJS)
 	$(CC) $(CFLAGS) -o compiler $(OBJS) $(LIBS)
@@ -20,3 +20,5 @@ lex.yy.c: fort.l fort.tab.h
 
 clean:
 	rm -f compiler compiler.exe *.o lex.yy.c fort.tab.c fort.tab.h
+
+.PHONY: clean

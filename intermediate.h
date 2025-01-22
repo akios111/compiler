@@ -1,55 +1,50 @@
 #ifndef INTERMEDIATE_H
 #define INTERMEDIATE_H
 
-#include <stdbool.h>
 #include "types.h"
 
-// Τύποι εντολών ενδιάμεσου κώδικα
+/* Intermediate code operation types */
 typedef enum {
-    IC_BINARY,   // Γενική δυαδική πράξη
-    IC_ADD,      // Πρόσθεση
-    IC_SUB,      // Αφαίρεση
-    IC_MUL,      // Πολλαπλασιασμός
-    IC_DIV,      // Διαίρεση
-    IC_ASSIGN,   // Ανάθεση
-    IC_GOTO,     // Άλμα χωρίς συνθήκη
-    IC_IF_GOTO,  // Υπό συνθήκη άλμα
-    IC_LABEL,    // Ετικέτα
-    IC_CALL,     // Κλήση συνάρτησης
-    IC_DO_START, // Αρχή DO loop
-    IC_DO_END    // Τέλος DO loop
+    IC_BINARY,
+    IC_UNARY,
+    IC_ASSIGN,
+    IC_GOTO,
+    IC_IF_GOTO,
+    IC_LABEL,
+    IC_CALL,
+    IC_DO_START,
+    IC_DO_END
 } ic_type_t;
 
-// Προσωρινή μεταβλητή
+/* Temporary variable structure */
 typedef struct temp_var {
     char* name;
     symbol_type_t type;
-    bool is_constant;
-    union {
-        int ival;
-        float fval;
-    } value;
+    struct temp_var* next;
 } temp_var;
 
-// Κόμβος ενδιάμεσου κώδικα
+/* Intermediate code node structure */
 typedef struct ic_node {
-    ic_type_t type;      // Τύπος εντολής
-    ic_type_t op;        // Τύπος πράξης (για IC_BINARY)
-    char* result;        // Αποτέλεσμα
-    char* arg1;          // Πρώτο όρισμα
-    char* arg2;          // Δεύτερο όρισμα
-    char* arg3;          // Τρίτο όρισμα (για DO loops)
-    int label;          // Για labels και gotos
-    struct ic_node* next; // Επόμενος κόμβος
+    ic_type_t type;
+    char* result;
+    char* arg1;
+    char* arg2;
+    int label;
+    struct ic_node* next;
 } ic_node;
 
-// Καθολικές μεταβλητές
+/* Global variables */
 extern ic_node* ic_head;
 
-// Συναρτήσεις χειρισμού ενδιάμεσου κώδικα
-void append_code(ic_node* code);
-void backpatch(ic_node* list, const char* label);
-ic_node* make_list(int instr);
-int next_instr(void);
+/* Function declarations */
+temp_var* new_temp(symbol_type_t type);
+ic_node* gen_binary(ic_type_t op, temp_var* result, temp_var* op1, temp_var* op2);
+ic_node* gen_assign(temp_var* result, temp_var* value);
+ic_node* gen_goto(const char* label);
+ic_node* gen_if_goto(temp_var* cond, temp_var* target);
+ic_node* gen_label(const char* label);
+ic_node* gen_call(const char* func, ic_node** args, int num_args);
+ic_node* gen_do_start(const char* var, temp_var* start, temp_var* end);
+ic_node* gen_do_end(ic_node* start);
 
-#endif 
+#endif /* INTERMEDIATE_H */ 

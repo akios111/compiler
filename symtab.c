@@ -1,239 +1,344 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "symtab.h"
+#include "error.h"
 #include "types.h"
+#include "globals.h"
 
-extern int error_count;
-extern int line_number;
-extern char line_buf[];
+// Global variables
+symbol_t symbol_table[MAX_SYMBOLS];
+int symbol_count = 0;
 
-#define HASH_SIZE 211
+common_block_t common_blocks[MAX_COMMON_BLOCKS];
+int common_block_count = 0;
 
-static symbol* hash_table[HASH_SIZE];
 static char* current_loop_var = NULL;
 
-// Απλή hash function
-static unsigned int hash(const char* str) {
-    unsigned int hash = 0;
-    while (*str) hash = hash * 31 + *str++;
-    return hash % HASH_SIZE;
+// Convert string to uppercase
+static char* to_upper(const char* s) {
+    char* p = strdup(s);
+    for(char* c = p; *c; c++) *c = toupper(*c);
+    return p;
 }
 
-// Αρχικοποίηση πίνακα συμβόλων
-void init_symbol_table(void) {
-    memset(hash_table, 0, sizeof(hash_table));
+// Initialize symbol table
+void init_symtab() {
+    symbol_count = 0;
+    common_block_count = 0;
     current_loop_var = NULL;
 }
 
-// Εισαγωγή συμβόλου
-void add_symbol(const char* name, symbol_type_t type) {
-    symbol *sym = lookup_symbol(name);
-    if (sym) {
-        fprintf(stderr, "Error: Redeclaration of variable '%s'\n", name);
-        fprintf(stderr, "Previous declaration was as %s\n", type_to_string(sym->type));
-        error_count++;
-        return;
+// Add symbol to table
+int add_symbol(const char* name, int type) {
+    if (symbol_count >= MAX_SYMBOLS) {
+        report_error(ERR_TYPE, SEV_ERROR, "Symbol table full", NULL);
+        return 0;
     }
-
-    symbol *new_symbol = (symbol *)malloc(sizeof(symbol));
-    new_symbol->name = strdup(name);
-    new_symbol->type = type;
-    new_symbol->is_array = 0;
-    new_symbol->array_size = 0;
-    new_symbol->next = hash_table[hash(name)];
-    hash_table[hash(name)] = new_symbol;
-    printf("Added symbol: %s, type: %s\n", name, type_to_string(type));
+    
+    char* upper_name = to_upper(name);
+    symbol_t* sym = &symbol_table[symbol_count];
+    sym->name = upper_name;
+    sym->type = type;
+    sym->is_array = 0;
+    sym->dimensions = 0;
+    sym->dim_sizes = NULL;
+    sym->common_block = NULL;
+    
+    if (type == TYPE_PROGRAM) {
+        set_program_declaration();
+    }
+    
+    symbol_count++;
+    return 1;
 }
 
-// Αναζήτηση συμβόλου
-symbol* lookup_symbol(const char* name) {
-    unsigned int h = hash(name);
-    symbol* entry = hash_table[h];
-    while (entry) {
-        if (strcmp(entry->name, name) == 0) {
-            printf("Found symbol: %s\n", name);
-            return entry;
-        }
-        entry = entry->next;
+// Add array symbol to table
+int add_array_symbol(const char* name, int type) {
+    if (symbol_count >= MAX_SYMBOLS) {
+        report_error(ERR_TYPE, SEV_ERROR, "Symbol table full", NULL);
+        return 0;
     }
-    printf("Symbol not found: %s\n", name);
+    
+    char* upper_name = to_upper(name);
+    symbol_t* sym = &symbol_table[symbol_count];
+    sym->name = upper_name;
+    sym->type = type;
+    sym->is_array = 1;
+    sym->dimensions = 0;
+    sym->dim_sizes = NULL;
+    sym->common_block = NULL;
+    
+    symbol_count++;
+    return 1;
+}
+
+// Lookup symbol in table
+symbol_t* lookup_symbol(const char* name) {
+    char* upper_name = to_upper(name);
+    for (int i = 0; i < symbol_count; i++) {
+        if (strcmp(symbol_table[i].name, upper_name) == 0) {
+            free(upper_name);
+            return &symbol_table[i];
+        }
+    }
+    free(upper_name);
     return NULL;
 }
 
-// Απελευθέρωση μνήμης
-void free_symbol_table(void) {
-    for (int i = 0; i < HASH_SIZE; i++) {
-        symbol* entry = hash_table[i];
-        while (entry) {
-            symbol* next = entry->next;
-            free(entry->name);
-            free(entry);
-            entry = next;
-        }
-        hash_table[i] = NULL;
-    }
-    if (current_loop_var) {
-        free(current_loop_var);
-        current_loop_var = NULL;
-    }
+// Get symbol type
+int get_symbol_type(const char* name) {
+    symbol_t* sym = lookup_symbol(name);
+    if (!sym) return TYPE_UNKNOWN;
+    return sym->type;
 }
 
-// Έλεγχος αν ένα σύμβολο έχει δηλωθεί
-int check_symbol_declared(const char* name) {
-    symbol* entry = lookup_symbol(name);
-    if (!entry) {
-        fprintf(stderr, "Error: Undeclared variable '%s'\n", name);
-        return 0;
+// Check if symbol is array
+int is_array(const char* name) {
+    symbol_t* sym = lookup_symbol(name);
+    if (sym) {
+        return sym->is_array;
     }
+    
+    return 0;
+}
+
+// Check array dimensions
+int check_array_dimensions(const char* name, int dimensions) {
+    symbol_t* sym = lookup_symbol(name);
+    if (!sym || !sym->is_array) return 0;
+    sym->dimensions = dimensions;
     return 1;
 }
 
-// Νλεγχος εγκυρότητας διάστασης πίνακα
-int is_valid_array_dimension(void) {
-    extern char* yytext;
-    symbol* entry = lookup_symbol(yytext);
+// Check array dimension validity
+int check_array_dimension(const char* dim_name) {
+    if (!dim_name) return 0;
+    symbol_t* sym = lookup_symbol(dim_name);
+    if (!sym) return 1; // Allow numeric literals
+    return sym->type == TYPE_INTEGER && !sym->is_array;
+}
+
+// Check assignment type compatibility
+int check_assignment_types(const char* target, const char* source) {
+    int target_type = get_symbol_type(target);
+    int source_type = get_symbol_type(source);
     
-    // Αν είναι αριθμητική σταθερά
-    if (strspn(yytext, "0123456789") == strlen(yytext)) {
+    if (target_type == TYPE_UNKNOWN) {
+        report_error(ERR_TYPE, SEV_ERROR, "Variable not declared", target);
+        return 0;
+    }
+    
+    if (source_type == TYPE_UNKNOWN) {
+        report_error(ERR_TYPE, SEV_ERROR, "Variable not declared", source);
+        return 0;
+    }
+    
+    return target_type == source_type;
+}
+
+// Check data values type compatibility
+int check_data_values_type(const char* values, int expected_type) {
+    // TODO: Implement type checking for data values
+    return 1;
+}
+
+// Check complex number components
+int check_complex_components(const char* real_part, const char* imag_part) {
+    if (!real_part || !imag_part) return 0;
+    
+    // Check if components are numeric literals
+    char* endptr;
+    strtod(real_part, &endptr);
+    if (*endptr == '\0') return 1;
+    
+    strtod(imag_part, &endptr);
+    if (*endptr == '\0') return 1;
+    
+    // Check if components are declared numeric variables
+    symbol_t* real_sym = lookup_symbol(real_part);
+    symbol_t* imag_sym = lookup_symbol(imag_part);
+    
+    if (real_sym && (real_sym->type == TYPE_INTEGER || real_sym->type == TYPE_REAL) &&
+        imag_sym && (imag_sym->type == TYPE_INTEGER || imag_sym->type == TYPE_REAL)) {
         return 1;
     }
     
-    // Αν είναι μεταβλητή, πρέπει να είναι INTEGER
-    if (entry) {
-        return entry->type == TYPE_INTEGER;
-    }
-    
     return 0;
 }
 
-// Έλεγχος συμβατότητας τύπων για DATA
-int check_data_type_compatibility(const char* var_name) {
-    extern char* yytext;
-    symbol* var = lookup_symbol(var_name);
-    if (!var) return 0;
-    
-    // Έλεγχος συμβατότητας τύπων
-    switch (var->type) {
-        case TYPE_INTEGER:
-            // Για INTEGER δεχόμαστε μόνο ακέραιους
-            return strspn(yytext, "0123456789") == strlen(yytext);
-            
-        case TYPE_REAL:
-            // Για REAL δεχόμαστε και ακέραιους και πραγματικούς
-            return 1;
-            
-        case TYPE_COMPLEX:
-            // Για COMPLEX ελέγχουμε τη μορφή (a:b)
-            return (yytext[0] == '(' && strchr(yytext, ':') != NULL);
-            
-        case TYPE_LOGICAL:
-            // Για LOGICAL μόνο .true. ή .false.
-            return (strcmp(yytext, ".true.") == 0 || strcmp(yytext, ".false.") == 0);
-            
-        case TYPE_STRING:
-            // Για STRING ελέγχουμε αν είναι string literal
-            return (yytext[0] == '"' || yytext[0] == '\'');
-            
-        default:
-            return 0;
+/* has_program_declaration moved to globals.c */
+
+// Process variables in COMMON block
+int process_common_block(const char* block_name, const char* variables) {
+    if (!block_name || !variables) {
+        return 0;  // Error
     }
+    // Process the variables
+    char* var_list = strdup(variables);
+    char* var = strtok(var_list, ",");
+    int success = 1;  // Track success/failure
+    
+    while (var != NULL) {
+        // Remove leading/trailing whitespace
+        while (isspace(*var)) var++;
+        char* end = var + strlen(var) - 1;
+        while (end > var && isspace(*end)) end--;
+        *(end + 1) = '\0';
+        
+        // Check if variable exists
+        symbol_t* sym = lookup_symbol(var);
+        if (!sym) {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Variable '%s' not found", var);
+            report_error(ERR_COMMON, SEV_ERROR, msg, block_name);
+            success = 0;
+        } else if (sym->common_block) {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "Variable '%s' already in COMMON block", var);
+            report_error(ERR_COMMON, SEV_ERROR, msg, sym->common_block);
+            success = 0;
+        } else {
+            sym->common_block = strdup(block_name);
+        }
+        
+        var = strtok(NULL, ",");
+    }
+    
+    free(var_list);
+    return success;
 }
 
-// Ορισμός τρέχουσας μεταβλητής βρόχου
-void set_current_loop_var(const char* var_name) {
+// Check function call
+int check_function_call(const char* name, const char* args) {
+    symbol_t* sym = lookup_symbol(name);
+    if (!sym) return 0;
+    if (sym->type != TYPE_FUNCTION) return 0;
+    return 1;
+}
+
+// Set current loop variable
+void set_current_loop_var(const char* var) {
     if (current_loop_var) free(current_loop_var);
-    current_loop_var = strdup(var_name);
+    current_loop_var = strdup(var);
 }
 
-// Έλεγχος τύπου μεταβλητής βρόχου
+// Check loop variable type
 int check_loop_variable_type(void) {
     if (!current_loop_var) return 0;
-    
-    symbol* var = lookup_symbol(current_loop_var);
+    symbol_t* var = lookup_symbol(current_loop_var);
     if (!var) return 0;
-    
-    // Η μεταβλητή ελέγχου πρέπει να είναι INTEGER και όχι πίνακας
     return (var->type == TYPE_INTEGER && !var->is_array);
 }
 
-// Έλεγχος τύπου έκφρασης
-int check_expression_type(void) {
-    extern char* yytext;
-    symbol* entry = lookup_symbol(yytext);
+// Count expressions in list
+int count_expressions(const char* expr_list) {
+    if (!expr_list || !*expr_list) return 0;
     
-    // Αν είναι μεταβλητή, πρέπει να έχει δηλωθεί
-    if (entry) return 1;
-    
-    // Αν είναι σταθερά, επιτρέπεται
-    if (strspn(yytext, "0123456789.") > 0) return 1;
-    
-    // Αν είναι string literal
-    if (yytext[0] == '"' || yytext[0] == '\'') return 1;
-    
-    return 0;
+    int count = 1;
+    const char* p = expr_list;
+    while ((p = strchr(p, ',')) != NULL) {
+        count++;
+        p++;
+    }
+    return count;
 }
 
-// Έλεγχος εγκυρότητας κλήσης συνάρτησης
-int is_valid_function_call(const char* func_name) {
-    // Λίστα με τις ενσωματωμένες συναρτήσεις της FORT
-    static const char* builtin_funcs[] = {
-        "abs", "sqrt", "sin", "cos", "exp", "log",
-        NULL
-    };
+// Check if identifiers in list are valid
+int check_valid_identifiers(const char* id_list) {
+    char* list = strdup(id_list);
+    char* token = strtok(list, ",");
     
-    // Έλεγχος για ενσωματωμένες συναρτήσεις
-    for (int i = 0; builtin_funcs[i]; i++) {
-        if (strcmp(func_name, builtin_funcs[i]) == 0) {
+    while (token != NULL) {
+        // Remove leading/trailing whitespace
+        while (isspace(*token)) token++;
+        char* end = token + strlen(token) - 1;
+        while (end > token && isspace(*end)) end--;
+        *(end + 1) = '\0';
+        
+        // Check first character is letter
+        if (!isalpha(token[0])) {
+            free(list);
+            return 0;
+        }
+        
+        // Check remaining characters are alphanumeric or underscore
+        for (int i = 1; token[i] != '\0'; i++) {
+            if (!isalnum(token[i]) && token[i] != '_') {
+                free(list);
+                return 0;
+            }
+        }
+        
+        token = strtok(NULL, ",");
+    }
+    
+    free(list);
+    return 1;
+}
+
+// Check for duplicate common block
+int is_duplicate_common_block(const char* block_name) {
+    for (int i = 0; i < common_block_count; i++) {
+        if (strcmp(common_blocks[i].name, block_name) == 0) {
             return 1;
         }
     }
+    return 0;
+}
+
+// Check data types match
+int check_data_types(const char* data_decl) {
+    // TODO: Implement type checking
+    return 1;
+}
+
+// Count dimensions in array declaration
+int count_dimensions(const char* dim_list) {
+    int count = 0;
+    for (int i = 0; dim_list[i] != '\0'; i++) {
+        if (dim_list[i] == ',') count++;
+    }
+    return count + 1;
+}
+
+// Check array assignment
+int check_array_assignment(const char* array_name, const char* expr) {
+    symbol_t* sym = lookup_symbol(array_name);
+    if (!sym || !sym->is_array) return 0;
     
-    // Αν δεν είναι ενσωματωμένη, ελέγχουμε αν έχει δηλωθεί
-    symbol* entry = lookup_symbol(func_name);
-    return (entry != NULL && entry->type == TYPE_FUNCTION);
-}
-
-// Μετατροπή τύπου σε string
-const char* type_to_string(symbol_type_t type) {
-    switch (type) {
-        case TYPE_INTEGER: return "INTEGER";
-        case TYPE_REAL: return "REAL";
-        case TYPE_COMPLEX: return "COMPLEX";
-        case TYPE_LOGICAL: return "LOGICAL";
-        case TYPE_STRING: return "STRING";
-        default: return "UNKNOWN";
-    }
-}
-
-int check_array_bounds(const char *name, int index) {
-    symbol *sym = lookup_symbol(name);
-    if (!sym) {
-        fprintf(stderr, "Error: Array '%s' is not declared\n", name);
-        return 0;
-    }
-    if (!sym->is_array) {
-        fprintf(stderr, "Error: '%s' is not an array\n", name);
-        return 0;
-    }
-    if (index < 1 || index > sym->array_size) {
-        fprintf(stderr, "Error: Array index %d out of bounds for array '%s' [1..%d] at line %d\n", 
-                index, name, sym->array_size, line_number);
-        fprintf(stderr, "Found: %s\n", line_buf);
-        return 0;
-    }
+    // TODO: Check dimensions match
     return 1;
 }
 
-int check_array_index_type(const char *array_name, const char *index_name) {
-    symbol *index_sym = lookup_symbol(index_name);
-    if (!index_sym) {
-        fprintf(stderr, "Error: Array index variable '%s' is not declared\n", index_name);
-        return 0;
-    }
-    if (index_sym->type != TYPE_INTEGER) {
-        fprintf(stderr, "Error: Array index '%s' must be of type INTEGER\n", index_name);
-        return 0;
-    }
+// Check variables in expression exist
+int check_expression_variables(const char* expr) {
+    // TODO: Parse expression and check variables
     return 1;
-} 
+}
+
+// Check logical expression is valid
+int check_logical_expression(const char* expr) {
+    // TODO: Validate logical expression
+    return 1;
+}
+
+// Check loop bounds are valid
+int check_loop_bounds(const char* bounds) {
+    // TODO: Validate loop bounds
+    return 1;
+}
+
+// Add check_relation_types implementation
+int check_relation_types(const char* expr) {
+    // Basic implementation - can be enhanced based on requirements
+    if (!expr) return 0;
+    // For now, just return true as we'll implement proper type checking later
+    return 1;
+}
+
+/* Function to check if a symbol is declared */
+int is_declared(const char* name) {
+    return get_symbol_type(name) != TYPE_UNKNOWN;
+}
