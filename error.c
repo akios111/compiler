@@ -16,118 +16,69 @@ static int warning_count = 0;
 
 /* Error type strings for better messages */
 static const char* error_type_str[] = {
-    "Syntax",
+    "None",
     "Declaration",
+    "Array",
+    "Range",
+    "Common Block",
     "Type",
+    "Invalid",
+    "Redeclaration",
+    "Syntax",
     "Scope",
     "Undefined",
     "Constant",
-    "Array",
     "Statement",
-    "DATA",
-    "COMMON",
+    "Data",
     "Subroutine",
-    "Label"
+    "Label",
+    "Function",
+    "Expression",
+    "I/O",
+    "Semantic",
+    "Duplicate"
 };
 
-/* Severity strings */
+/* Severity level strings */
 static const char* severity_str[] = {
     "Warning",
     "Error",
-    "Fatal"
+    "Fatal Error"
 };
 
 void report_error(error_type_t type, error_severity_t severity, const char* msg, const char* detail) {
-    if (error_count >= MAX_ERRORS) {
-        print_error_summary();
-        exit(1);
-    }
-
-    /* Print error location and type */
-    fprintf(stderr, "\nLine %d: %s %s: %s", line_number, error_type_str[type], severity_str[severity], msg);
-    
-    /* Print additional details if available */
-    if (detail) {
-        fprintf(stderr, "\n  Details: %s", detail);
-    }
-    
-    /* Print current line for context */
-    if (current_line_buf[0] != '\0') {
-        fprintf(stderr, "\n  Context: %s", current_line_buf);
-        /* Print caret pointing to error position */
-        if (current_line_pos > 0) {
-            fprintf(stderr, "\n           ");
-            for (int i = 0; i < current_line_pos - 1; i++) {
-                fprintf(stderr, " ");
-            }
-            fprintf(stderr, "^");
-        }
-    }
-
-    /* Print suggestion based on error type */
-    switch (type) {
-        case ERR_SYNTAX:
-            fprintf(stderr, "\n  Suggestion: Check for missing semicolons, parentheses, or keywords");
-            break;
-        case ERR_DECLARATION:
-            fprintf(stderr, "\n  Suggestion: Ensure variable is declared before use and follows FORT syntax");
-            break;
-        case ERR_TYPE:
-            fprintf(stderr, "\n  Suggestion: Check variable types match in assignment/operation");
-            break;
-        case ERR_SCOPE:
-            fprintf(stderr, "\n  Suggestion: Verify variable/function declarations are in the correct scope");
-            break;
-        case ERR_UNDEFINED:
-            fprintf(stderr, "\n  Suggestion: Ensure all variables and functions are declared before use");
-            break;
-        case ERR_CONSTANT:
-            fprintf(stderr, "\n  Suggestion: Check constant format matches FORT specifications");
-            break;
-        case ERR_ARRAY:
-            fprintf(stderr, "\n  Suggestion: Verify array dimensions and index expressions");
-            break;
-        case ERR_STATEMENT:
-            fprintf(stderr, "\n  Suggestion: Check statement syntax and placement");
-            break;
-        case ERR_DATA:
-            fprintf(stderr, "\n  Suggestion: Check DATA statement format and value types");
-            break;
-        case ERR_COMMON:
-            fprintf(stderr, "\n  Suggestion: Verify COMMON block syntax and variable declarations");
-            break;
-        case ERR_SUBROUTINE:
-            fprintf(stderr, "\n  Suggestion: Check subroutine declaration and call syntax");
-            break;
-        case ERR_LABEL:
-            fprintf(stderr, "\n  Suggestion: Verify label format and ensure all referenced labels exist");
-            break;
-        case ERR_FUNCTION:
-            fprintf(stderr, "\n  Suggestion: Check function declaration and call syntax");
-            break;
-        case ERR_EXPRESSION:
-            fprintf(stderr, "\n  Suggestion: Verify expression syntax and operator precedence");
-            break;
-        case ERR_IO:
-            fprintf(stderr, "\n  Suggestion: Check READ/WRITE statement format and arguments");
-            break;
-    }
-    
-    fprintf(stderr, "\n");
-
-    if (severity >= SEV_ERROR) {
+    if (severity == SEV_ERROR || severity == SEV_FATAL) {
         error_count++;
     } else {
         warning_count++;
     }
+    
+    fprintf(stderr, "Line %d: %s %s: %s\n", 
+            line_number, 
+            severity_str[severity],
+            error_type_str[type],
+            msg);
+            
+    if (detail) {
+        fprintf(stderr, "Detail: %s\n", detail);
+    }
+    
+    // Print the line where the error occurred
+    if (current_line_buf[0] != '\0') {
+        fprintf(stderr, "%s\n", current_line_buf);
+    }
+    
+    if (severity == SEV_FATAL || error_count >= MAX_ERRORS) {
+        exit(1);
+    }
 }
 
 void report_warning(const char* msg, const char* detail) {
-    report_error(ERR_SYNTAX, SEV_WARNING, msg, detail);
+    report_error(ERR_NONE, SEV_WARNING, msg, detail);
 }
 
 void report_semantic_error(const char* msg) {
-    report_error(ERR_TYPE, SEV_ERROR, msg, NULL);
+    report_error(ERR_SEMANTIC, SEV_ERROR, msg, NULL);
 }
 
 void type_error(const char* msg) {
@@ -135,9 +86,9 @@ void type_error(const char* msg) {
 }
 
 void report_type_error(const char* expected, const char* found) {
-    char detail[1024];
-    snprintf(detail, sizeof(detail), "Expected type: %s\nFound type: %s", expected, found);
-    report_error(ERR_TYPE, SEV_ERROR, "Type mismatch", detail);
+    char buf[256];
+    snprintf(buf, sizeof(buf), "Expected %s but found %s", expected, found);
+    report_error(ERR_TYPE, SEV_ERROR, buf, NULL);
 }
 
 void check_declaration(const char* identifier, const char* type) {
@@ -219,13 +170,20 @@ void report_program_structure_error(void) {
         "Program must follow format:\nPROGRAM name\n  declarations\n  statements\nEND");
 }
 
-void report_declaration_error(const char* found) {
-    char detail[256];
-    snprintf(detail, sizeof(detail),
-            "Found: %s\n"
-            "All declarations must follow the PROGRAM statement and come before any executable statements",
-            found);
-    report_error(ERR_DECLARATION, SEV_ERROR, "Invalid declaration placement", detail);
+void report_declaration_error(const char* identifier, const char* context) {
+    char error_msg[512];
+    if (!in_program && !in_subprogram) {
+        snprintf(error_msg, sizeof(error_msg), 
+            "Declaration of '%s' outside any program unit", 
+            identifier);
+        report_context_error(ERR_SCOPE, SEV_ERROR, error_msg,
+            "All declarations must be inside a PROGRAM, FUNCTION, or SUBROUTINE");
+    } else {
+        snprintf(error_msg, sizeof(error_msg), 
+            "Invalid declaration of '%s'", 
+            identifier);
+        report_context_error(ERR_DECLARATION, SEV_ERROR, error_msg, context);
+    }
 }
 
 void report_invalid_identifier(const char* detail) {
@@ -242,10 +200,8 @@ void reset_error_count(void) {
 }
 
 void print_error_summary(void) {
-    fprintf(stderr, "\nCompilation Summary:\n");
-    fprintf(stderr, "  Errors: %d\n", error_count);
-    fprintf(stderr, "  Warnings: %d\n", warning_count);
-    if (error_count > 0) {
-        fprintf(stderr, "\nFix the above errors and try again.\n");
+    if (error_count > 0 || warning_count > 0) {
+        fprintf(stderr, "\nCompilation finished with %d error(s) and %d warning(s)\n",
+                error_count, warning_count);
     }
 } 

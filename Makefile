@@ -4,7 +4,7 @@ FLEX = flex
 BISON = bison
 LIBS = 
 
-OBJS = lex.yy.o fort.tab.o main.o optimization.o codegen.o symtab.o error.o globals.o error_recovery.o token_buffer.o parser_utils.o validation.o
+OBJS = lex.yy.o fort.tab.o main.o optimization.o codegen.o symtab.o error.o globals.o error_recovery.o token_buffer.o parser_utils.o validation.o error_context.o mips_layout.o register_alloc.o mips_gen.o types.o scope.o
 
 compiler: $(OBJS)
 	$(CC) $(CFLAGS) -o compiler $(OBJS) $(LIBS)

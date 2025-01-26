@@ -2,9 +2,9 @@
 #define SCOPE_H
 
 #include <stdbool.h>
-#include "symtab.h"
+#include "types.h"
 
-// Τύποι εμβέλειας
+// Scope types
 typedef enum {
     SCOPE_GLOBAL,
     SCOPE_FUNCTION,
@@ -13,24 +13,25 @@ typedef enum {
     SCOPE_IF
 } scope_type_t;
 
-// Δομή εμβέλειας
+// Scope structure
 typedef struct scope {
     scope_type_t type;
     struct scope* parent;
-    symbol_entry_t** symbols;
-    int num_symbols;
     int level;
+    symbol_t** symbols;  // Array of symbol pointers
+    int num_symbols;     // Number of symbols in this scope
 } scope_t;
 
-// Συναρτήσεις διαχείρισης εμβέλειας
-scope_t* create_scope(scope_type_t type, scope_t* parent);
-void enter_scope(scope_type_t type);
+// Function declarations
+void init_scope(void);
+void enter_scope(void);
 void exit_scope(void);
-void add_symbol_to_scope(symbol_entry_t* symbol);
-symbol_entry_t* lookup_symbol_in_scope(const scope_t* scope, const char* name);
-symbol_entry_t* lookup_symbol(const char* name);
-void free_scope(scope_t* scope);
-const scope_t* get_current_scope(void);
+int get_current_scope(void);
 bool is_global_scope(void);
+scope_t* get_scope_by_level(int level);
+void free_scope(scope_t* scope);
+void add_symbol_to_scope(symbol_t* symbol);
+symbol_t* lookup_symbol_in_scope(const char* name, int scope_level);
+void print_scope_symbols(int scope_level);
 
-#endif
+#endif /* SCOPE_H */ 

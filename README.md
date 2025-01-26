@@ -1,6 +1,94 @@
-# FORT Compiler
+# FORT Compiler Project
 
-Compiler για τη γλώσσα FORT, μια FORTRAN-like γλώσσα προγραμματισμού.
+A compiler implementation for the FORT programming language, written in C using Flex and Bison.
+
+## Project Overview
+
+This project implements a compiler for FORT, translating FORT source code into C. The compiler is built using standard tools:
+- Flex for lexical analysis
+- Bison for parsing
+- C for the implementation
+
+## Current Status
+
+The compiler currently implements:
+- Complete lexical analysis with support for:
+  - Keywords and identifiers
+  - Multiple number formats (decimal, hex, octal, binary)
+  - String and character literals
+  - Comments and operators
+- Syntax analysis featuring:
+  - Full FORT grammar implementation
+  - Proper operator precedence handling
+  - IF-THEN-ELSE structures
+  - DO-loop constructs
+  - Array declarations and operations
+
+## Project Structure
+
+```
+.
+├── src/           # Source code files
+├── include/       # Header files
+├── tests/         # Test cases
+└── docs/          # Documentation
+```
+
+## Recent Updates
+
+- Enhanced grammar with improved error handling
+- Added support for multiple numeric formats
+- Implemented comprehensive state transitions in lexical analyzer
+- Resolved IF-THEN-ELSE conflicts
+- Added operator precedence rules
+
+## Building and Running
+
+### Prerequisites
+- GCC compiler
+- Flex (Fast Lexical Analyzer)
+- Bison (Parser Generator)
+- Make
+
+### Build Instructions
+```bash
+make clean
+make
+```
+
+### Running the Compiler
+```bash
+./fort input.fort -o output.c
+```
+
+## Testing
+
+Run the test suite:
+```bash
+make test
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Authors
+
+- [Your Name/Team]
+
+## Acknowledgments
+
+- FORT language specification
+- Flex and Bison documentation
+- Compiler construction resources
 
 ## Δομή Project
 

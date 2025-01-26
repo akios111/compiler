@@ -10,76 +10,74 @@
 #include "types.h"
 #include "error_recovery.h"
 #include "tokens.h"
-#include "token_buffer.h"  /* Add token buffer header */
-#include "parser_utils.h"  /* Add this include */
-#include "validation.h"    /* Add validation header */
+#include "token_buffer.h"
+#include "parser_utils.h"
+#include "validation.h"
 
 /* Global variables */
 extern int yylineno;
 extern char* yytext;
 int debug_parser = 1;  // Enable parser debugging
-bool in_subprogram = false; // Track if we're in a subroutine/function
+extern bool in_subprogram;  // Track if we're in a subroutine/function
+extern int error_count;  // Track number of errors
+extern type_t current_type;
+extern int in_declaration_context;
 
 /* Function declarations */
 int yylex(void);
 void yyerror(const char* msg);
 #define DEBUG_PARSER(msg, ...) if(debug_parser) printf("Parser: " msg "\n", ##__VA_ARGS__)
 
+/* Error reporting helper */
+void report_context_error(error_type_t type, error_severity_t severity, const char* msg, const char* context) {
+    char error_msg[512];
+    snprintf(error_msg, sizeof(error_msg), "Line %d: %s\nContext: %s", 
+             yylineno, msg, context ? context : "Not available");
+    report_error(type, severity, error_msg, NULL);
+}
+
 /* Forward declarations */
 int check_array_declared(const char* name);
-int check_repeat_count(const char* count);
+extern int check_array_dimension(const char* dim);
 int check_variable_declared(const char* name);
 int check_numeric_variables(const char* var1, const char* var2);
 void check_program_structure(void);
-static void enter_program(const char* name);
-static void exit_program(void);
+void exit_program(void);
+int validate_array_index(const char* array_name, const char* index_expr);
+void validate_array_indices(const char* array_name, const char* indices);
+void validate_function_args(const char* func_name, const char* args);
 
 /* Function implementations */
 int check_array_declared(const char* name) {
-    // TODO: Implement array declaration check
-    return 1; // Temporarily return true
-}
-
-int check_repeat_count(const char* count) {
-    // TODO: Implement repeat count validation
-    return 1; // Temporarily return true
+    if (!lookup_symbol(name)) {
+        report_error(ERR_UNDEFINED, SEV_ERROR, "Array not declared", name);
+    }
+    return 1;
 }
 
 int check_variable_declared(const char* name) {
-    // TODO: Implement variable declaration check
-    return 1; // Temporarily return true
+    if (!lookup_symbol(name)) {
+        report_error(ERR_UNDEFINED, SEV_ERROR, "Variable not declared", name);
+    }
+    return 1;
 }
 
 void check_program_structure(void) {
-    if (!in_program) {
-        report_error(ERR_SYNTAX, SEV_ERROR, 
-            "Missing PROGRAM declaration at start of file", 
-            "Every FORT program must begin with: PROGRAM name");
-        return;
-    }
-    if (!program_name) {
+    if (!program_name && !in_subprogram) {
         report_error(ERR_SYNTAX, SEV_ERROR, 
             "Program name not specified in PROGRAM declaration",
             "Example: PROGRAM example");
         return;
     }
-}
-
-static void enter_program(const char* name) {
-    if (in_program) {
-        report_error(ERR_SYNTAX, SEV_ERROR, "Multiple PROGRAM declarations found", name);
+    if (in_program && in_subprogram) {
+        report_error(ERR_SYNTAX, SEV_ERROR,
+            "Cannot mix PROGRAM with FUNCTION/SUBROUTINE",
+            "PROGRAM and FUNCTION/SUBROUTINE must be in separate files");
         return;
     }
-    if (!name) {
-        report_error(ERR_SYNTAX, SEV_ERROR, "Invalid program name", NULL);
-        return;
-    }
-    in_program = true;
-    program_name = strdup(name);
-    DEBUG_PARSER("Entered program: %s", name);
 }
 
-static void exit_program(void) {
+void exit_program(void) {
     if (program_name) {
         free(program_name);
         program_name = NULL;
@@ -89,745 +87,684 @@ static void exit_program(void) {
 }
 
 void yyerror(const char* msg) {
-    char error_msg[256];
-    snprintf(error_msg, sizeof(error_msg), "Syntax error at line %d: %s", yylineno, msg);
-    error_count++;
-    report_error(ERR_SYNTAX, SEV_ERROR, error_msg, NULL);
+    char context[256];
+    snprintf(context, sizeof(context), "Near token: %s", yytext);
+    report_context_error(ERR_SYNTAX, SEV_ERROR, msg, context);
+}
+
+int validate_array_index(const char* array_name, const char* index_expr) {
+    symbol_t* sym = lookup_symbol(index_expr);
+    if (sym) {
+        if (sym->type != TYPE_INTEGER) {
+            report_error(ERR_TYPE, SEV_ERROR, "Array index must be INTEGER", index_expr);
+            return 0;
+        }
+    }
+    return 1;
 }
 %}
 
 %union {
+    char* sval;
     int ival;
     double rval;
-    char *sval;
+    int bval;
     struct {
-        double real;
-        double imag;
-    } complex_val;
-    struct {
-        char *name;
-        int is_array;
-        int dimensions;
-    } id_info;
+        char* text;
+        type_t type;
+        symbol_kind_t kind;
+    } expr;
 }
 
-/* Token declarations */
-%token <sval> ICONST RCONST ID STRING_LITERAL
-%token INTEGER REAL COMPLEX LOGICAL CHARACTER STRING
-%token DATA COMMON
-%token IF THEN ELSE ENDIF
-%token DO ENDDO
-%token READ WRITE
-%token CALL RETURN STOP CONTINUE GOTO
-%token FUNCTION SUBROUTINE END PROGRAM
-%token TRUE FALSE
-%token NEWLINE
-%token DOLLAR
+%token <sval> ID STRING_LITERAL
+%token <ival> ICONST
+%token <rval> RCONST
+%token <bval> BCONST
+%token PROGRAM END INTEGER REAL COMPLEX LOGICAL CHARACTER STRING
+%token DATA COMMON IF THEN ELSE ENDIF DO ENDDO READ WRITE
+%token CALL RETURN STOP CONTINUE GOTO FUNCTION SUBROUTINE DOLLAR
+%token TRUE FALSE ASSIGN PLUS MINUS STAR SLASH POWER
+%token AND OR NOT GT LT GE LE EQ NE
+%token LPAREN RPAREN LBRACKET RBRACKET COMMA COLON NEWLINE
 
-/* Operators */
-%token COMMA ASSIGN
-%token OR AND NOT
-%token GT LT EQ LE GE NE
-%token PLUS MINUS
-%token STAR SLASH POWER
-%token LPAREN RPAREN
-%token LBRACKET RBRACKET
-
-/* Type declarations */
-%type <sval> program program_header declarations declaration type
-%type <sval> variable_list variable array_reference
-%type <sval> statement statements
-%type <sval> assignment_statement if_statement do_statement
-%type <sval> call_statement io_statement goto_statement
-%type <sval> expression logical_expression relation simple_expression
-%type <sval> term factor primary
-%type <sval> data_list data_item data_values data_value
-%type <sval> index_list argument_list
-%type <sval> constant
-
-/* Operator precedence */
-%left COMMA
-%right ASSIGN
 %left OR
 %left AND
 %right NOT
-%left GT LT EQ LE GE NE
+%left GT LT GE LE EQ NE
 %left PLUS MINUS
 %left STAR SLASH
 %right POWER
 %right UMINUS
-%left LPAREN RPAREN
-
-/* Resolve dangling else */
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
+%nonassoc ARRAY_ACCESS
+%nonassoc FUNCTION_CALL
 
-/* Resolve expression list conflicts */
-%left COMMA_PREC
-%left EXPRESSION_LIST
-
-/* Resolve statement conflicts */
-%left STATEMENT_END
-%left NEWLINE
-
-/* Resolve array reference conflicts */
-%left ARRAY_REF
-%left INDEX
-
-/* Resolve function call conflicts */
-%left FUNCTION_CALL
-%left ARGUMENT
-
-/* Resolve DO loop conflicts */
-%left DO_CONTROL
-%left DO_BODY
-
-/* Start symbol */
-%start program
+/* Declare types for non-terminals */
+%type <expr> expression term factor primary var_reference
+%type <sval> expression_list program program_header declarations declaration type vars
+%type <sval> statements statement labeled_statement unlabeled_statement function_argument_list
+%type <sval> simple_statement compound_statement assignment_statement if_statement
+%type <sval> logical_expression logical_term logical_factor relational_expression
+%type <sval> value value_list common_block data_stmt data_items data_item
+%type <sval> if_then_statement if_then_else_statement if_logical_statement if_computed_statement
+%type <sval> computed_expression goto_statement label_list label
+%type <sval> call_statement io_statement io_list io_item
+%type <sval> loop_statement
 
 %%
-program: program_header declarations statements END
+
+program
+    : program_header declarations statements END
     {
         check_program_structure();
         exit_program();
     }
-    | error
-    { 
-        char error_msg[256];
-        snprintf(error_msg, sizeof(error_msg), 
-            "Invalid program structure at line %d. Program must follow format:\n"
-            "PROGRAM name\n  declarations\n  statements\nEND", yylineno);
-        report_error(ERR_SYNTAX, SEV_ERROR, error_msg, NULL);
-        yyerrok; 
+    ;
+
+program_header
+    : PROGRAM ID NEWLINE
+    {
+        $$ = $2;  /* Use the ID's value */
+        program_name = strdup($2);
+        in_program = true;
+        set_program_declaration();  // This sets both in_program and has_program
+        set_error_context(CONTEXT_PROGRAM);
+        DEBUG_PARSER("Program header: %s", $2);
+    }
+    | SUBROUTINE ID NEWLINE
+    {
+        $$ = $2;  /* Use the ID's value */
+        in_subprogram = true;
+        set_error_context(CONTEXT_PROGRAM);
+        DEBUG_PARSER("Subroutine: %s", $2);
+    }
+    | FUNCTION ID NEWLINE
+    {
+        $$ = $2;  /* Use the ID's value */
+        in_subprogram = true;
+        set_error_context(CONTEXT_PROGRAM);
+        DEBUG_PARSER("Function: %s", $2);
+    }
+    | error NEWLINE
+    {
+        check_program_declaration();  // Use centralized error handling
     }
     ;
 
-program_header: PROGRAM ID NEWLINE
-    {
-        enter_program($2);
-        free($2);
+declarations
+    : /* empty */ { $$ = strdup(""); }
+    | declarations declaration { $$ = $2; }
+    | declarations common_block { $$ = $2; }
+    | declarations data_stmt { $$ = $2; }
+    ;
+
+declaration
+    : type { 
+        in_declaration_context = true; 
+        set_error_context(CONTEXT_DECLARATION);
+    } vars NEWLINE { 
+        in_declaration_context = false; 
+        set_error_context(CONTEXT_PROGRAM);
+        $$ = $3;
     }
     ;
 
-declarations: /* empty */
-    {
-        $$ = strdup("");
+type
+    : INTEGER { current_type = TYPE_INTEGER; $$ = strdup("INTEGER"); }
+    | REAL { current_type = TYPE_REAL; $$ = strdup("REAL"); }
+    | COMPLEX { current_type = TYPE_COMPLEX; $$ = strdup("COMPLEX"); }
+    | LOGICAL { current_type = TYPE_LOGICAL; $$ = strdup("LOGICAL"); }
+    | CHARACTER { current_type = TYPE_CHARACTER; $$ = strdup("CHARACTER"); }
+    | STRING { current_type = TYPE_STRING; $$ = strdup("STRING"); }
+    ;
+
+vars
+    : vars COMMA var_reference { 
+        $$ = strdup($3.text);
     }
-    | declarations declaration
-    {
-        char temp[2048];
-        snprintf(temp, sizeof(temp), "%s%s", $1, $2);
-        $$ = strdup(temp);
-        free($1);
-        free($2);
-    }
-    | declarations declaration NEWLINE
-    {
-        $$ = $2;
-    }
-    | declarations error NEWLINE
-    {
-        char error_msg[256];
-        snprintf(error_msg, sizeof(error_msg), 
-            "Invalid declaration at line %d. Expected: type variable_list", yylineno);
-        report_error(ERR_SYNTAX, SEV_ERROR, error_msg, NULL);
-        yyerrok;
-        $$ = strdup("");
+    | var_reference { 
+        $$ = strdup($1.text);
     }
     ;
 
-statements: statement NEWLINE
+var_reference
+    : ID LPAREN expression RPAREN
     {
-        $$ = $1;
+        symbol_t* sym = lookup_symbol($1);
+        if (!sym) {
+            yyerror("Undefined identifier");
+            $$.type = TYPE_ERROR;
+        } else if (sym->kind == SYMBOL_ARRAY) {
+            // This is an array access
+            char buf[1024];
+            snprintf(buf, sizeof(buf), "%s[%s]", $1, $3.text);
+            $$.text = strdup(buf);
+            $$.type = sym->type;
+            $$.kind = SYMBOL_ARRAY;
+           } else {
+            yyerror("Invalid use of identifier");
+            $$.type = TYPE_ERROR;
+        }
     }
-    | statements statement NEWLINE
+    | ID LPAREN expression_list RPAREN
     {
-        char temp[2048];
-        snprintf(temp, sizeof(temp), "%s%s", $1, $2);
-        $$ = strdup(temp);
-        free($1);
-        free($2);
+        symbol_t* sym = lookup_symbol($1);
+        if (!sym) {
+            yyerror("Undefined identifier");
+            $$.type = TYPE_ERROR;
+        } else if (sym->kind == SYMBOL_FUNCTION) {
+            // This is a function call
+            validate_function_args($1, $3);
+            char buf[1024];
+            snprintf(buf, sizeof(buf), "%s(%s)", $1, $3);
+            $$.text = strdup(buf);
+            $$.type = sym->type;
+            $$.kind = SYMBOL_FUNCTION;
+           } else {
+            yyerror("Invalid use of identifier");
+            $$.type = TYPE_ERROR;
+        }
     }
-    | statements error NEWLINE
+    | ID
     {
-        report_error(ERR_SYNTAX, SEV_ERROR, "Invalid statement", NULL);
-        yyerrok;
-        $$ = $1;
+        symbol_t* sym = lookup_symbol($1);
+        if (!sym) {
+            yyerror("Undefined identifier");
+            $$.type = TYPE_ERROR;
+        } else {
+            $$.text = strdup($1);
+            $$.type = sym->type;
+            $$.kind = sym->kind;
+        }
     }
     ;
 
-statement: assignment_statement
-    {
-        $$ = $1;
-    }
-    | if_statement
-    {
-        $$ = $1;
-    }
-    | do_statement
-    {
-        $$ = $1;
-    }
+statements
+    : /* empty */ { $$ = strdup(""); }
+    | statements statement NEWLINE { $$ = $2; }
+    | statements NEWLINE { $$ = strdup(""); }  /* Handle blank lines */
+    ;
+
+statement
+    : labeled_statement
+    | unlabeled_statement
+    ;
+
+labeled_statement
+    : label unlabeled_statement
+    ;
+
+unlabeled_statement
+    : simple_statement
+    | compound_statement
+    ;
+
+simple_statement
+    : assignment_statement
     | call_statement
-    {
-        $$ = $1;
-    }
-    | io_statement
-    {
-        $$ = $1;
-    }
     | goto_statement
+    | io_statement
+    | CONTINUE    { $$ = strdup("CONTINUE"); }
+    | STOP       { $$ = strdup("STOP"); }
+    | RETURN     { $$ = strdup("RETURN"); }
+    ;
+
+compound_statement
+    : if_statement
+    | loop_statement
+    ;
+
+assignment_statement
+    : var_reference ASSIGN expression
     {
-        $$ = $1;
-    }
-    | RETURN
-    {
-        if (!in_subprogram) {
-            report_error(ERR_SYNTAX, SEV_ERROR, 
-                "RETURN statement outside subroutine/function", NULL);
+        if (!is_compatible_types($1.type, $3.type)) {
+            report_error(ERR_TYPE, SEV_ERROR, "Type mismatch in assignment", NULL);
         }
-        $$ = strdup("RETURN");
+        char temp[256];
+        snprintf(temp, sizeof(temp), "%s=%s", $1.text, $3.text);
+        $$ = strdup(temp);
     }
-    | STOP
+    ;
+
+if_statement
+    : if_then_statement
+    | if_then_else_statement
+    | if_logical_statement
+    | if_computed_statement
+    ;
+
+if_then_statement
+    : IF LPAREN logical_expression RPAREN THEN statements ENDIF
     {
-        $$ = strdup("STOP");
+        char temp[512];
+        snprintf(temp, sizeof(temp), "IF(%s)THEN\n%s\nENDIF", $3, $6);
+        $$ = strdup(temp);
     }
-    | CONTINUE
+    ;
+
+if_then_else_statement
+    : IF LPAREN logical_expression RPAREN THEN statements ELSE statements ENDIF
     {
-        if (!in_loop) {
-            report_error(ERR_SYNTAX, SEV_ERROR,
-                "CONTINUE statement outside DO loop", NULL);
+        char temp[512];
+        snprintf(temp, sizeof(temp), "IF(%s)THEN\n%s\nELSE\n%s\nENDIF", $3, $6, $8);
+        $$ = strdup(temp);
+    }
+    ;
+
+if_logical_statement
+    : IF LPAREN logical_expression RPAREN simple_statement
+    {
+        char temp[512];
+        snprintf(temp, sizeof(temp), "IF(%s)%s", $3, $5);
+        $$ = strdup(temp);
+    }
+    ;
+
+if_computed_statement
+    : IF LPAREN computed_expression RPAREN label COMMA label COMMA label
+    {
+        char temp[512];
+        snprintf(temp, sizeof(temp), "IF(%s)%s,%s,%s", $3, $5, $7, $9);
+        $$ = strdup(temp);
+    }
+    ;
+
+computed_expression
+    : expression { $$ = strdup($1.text); }
+    ;
+
+logical_expression
+    : logical_term
+    | logical_expression OR logical_term
+    {
+        char temp[256];
+        snprintf(temp, sizeof(temp), "%s.OR.%s", $1, $3);
+        $$ = strdup(temp);
+    }
+    ;
+
+logical_term
+    : logical_factor
+    | logical_term AND logical_factor
+    {
+        char temp[256];
+        snprintf(temp, sizeof(temp), "%s.AND.%s", $1, $3);
+        $$ = strdup(temp);
+    }
+    ;
+
+logical_factor
+    : relational_expression { $$ = $1; }
+    | NOT logical_factor { char temp[256]; snprintf(temp, sizeof(temp), ".NOT.%s", $2); $$ = strdup(temp); }
+    | LPAREN logical_expression RPAREN { char temp[256]; snprintf(temp, sizeof(temp), "(%s)", $2); $$ = strdup(temp); }
+    | BCONST { $$ = $1 ? strdup(".TRUE.") : strdup(".FALSE."); }
+    ;
+
+relational_expression
+    : expression GT expression { 
+        char temp[256]; 
+        snprintf(temp, sizeof(temp), "%s.GT.%s", $1.text, $3.text); 
+             $$ = strdup(temp);
+         }
+    | expression LT expression { 
+        char temp[256]; 
+        snprintf(temp, sizeof(temp), "%s.LT.%s", $1.text, $3.text); 
+             $$ = strdup(temp);
+         }
+    | expression GE expression { 
+        char temp[256]; 
+        snprintf(temp, sizeof(temp), "%s.GE.%s", $1.text, $3.text); 
+             $$ = strdup(temp);
+         }
+    | expression LE expression { 
+        char temp[256]; 
+        snprintf(temp, sizeof(temp), "%s.LE.%s", $1.text, $3.text); 
+             $$ = strdup(temp);
+         }
+    | expression EQ expression { 
+        char temp[256]; 
+        snprintf(temp, sizeof(temp), "%s.EQ.%s", $1.text, $3.text); 
+             $$ = strdup(temp);
+         }
+    | expression NE expression { 
+        char temp[256]; 
+        snprintf(temp, sizeof(temp), "%s.NE.%s", $1.text, $3.text); 
+             $$ = strdup(temp);
+         }
+    ;
+
+loop_statement
+    : DO var_reference ASSIGN expression COMMA expression COMMA expression statements ENDDO
+         { 
+        char temp[512];
+        snprintf(temp, sizeof(temp), "DO %s=%s,%s,%s\n%s\nENDDO", 
+                $2.text, $4.text, $6.text, $8.text, $9);
+             $$ = strdup(temp);
+         }
+    | DO var_reference ASSIGN expression COMMA expression statements ENDDO
+         { 
+        char temp[512];
+        snprintf(temp, sizeof(temp), "DO %s=%s,%s\n%s\nENDDO", 
+                $2.text, $4.text, $6.text, $7);
+             $$ = strdup(temp);
+         }
+    ;
+
+goto_statement
+    : GOTO label
+         { 
+        $$ = $2;
+         }
+    | GOTO var_reference COMMA LPAREN label_list RPAREN
+         { 
+        char temp[256];
+        snprintf(temp, sizeof(temp), "GOTO %s,(%s)", $2.text, $5);
+             $$ = strdup(temp);
+        DEBUG_PARSER("Computed GOTO statement with variable: %s", $2.text);
+    }
+    ;
+
+label_list
+    : label_list COMMA label
+    {
+        char temp[256];
+        snprintf(temp, sizeof(temp), "%s,%s", $1, $3);
+        $$ = strdup(temp);
+    }
+    | label
+    {
+           $$ = $1;
+       }
+       ;
+
+label
+    : ICONST { char buf[32]; snprintf(buf, sizeof(buf), "%d", $1); $$ = strdup(buf); }
+    ;
+
+call_statement
+    : CALL ID
+    {
+        $$ = $2;  /* Use function name */
+        DEBUG_PARSER("CALL statement for: %s", $2);
+    }
+    | CALL ID LPAREN function_argument_list RPAREN
+    {
+        char temp[256];
+                snprintf(temp, sizeof(temp), "%s(%s)", $2, $4);
+                $$ = strdup(temp);
+        DEBUG_PARSER("CALL statement with args for: %s", $2);
+            }
+    ;
+
+function_argument_list
+    : function_argument_list COMMA expression
+        { 
+            char temp[256];
+        snprintf(temp, sizeof(temp), "%s,%s", $1, $3.text);
+            $$ = strdup(temp);
         }
-        $$ = strdup("CONTINUE");
-    }
-    | ICONST statement
+    | expression
     {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s %s", $1, $2);
-        $$ = strdup(temp);
-        free($1);
-        free($2);
+        $$ = strdup($1.text);
     }
-    | error
-    {
-        report_error(ERR_SYNTAX, SEV_ERROR, "Invalid statement", NULL);
-        yyerrok;
-        $$ = strdup("");
-    }
-    ;
+            ;
 
-assignment_statement: variable ASSIGN expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s = %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    ;
-
-variable: ID
-    {
-        if (!check_variable_declared($1)) {
-            char error_msg[256];
-            snprintf(error_msg, sizeof(error_msg),
-                "Undeclared variable '%s' at line %d", $1, yylineno);
-            report_error(ERR_TYPE, SEV_ERROR, error_msg, NULL);
+io_statement
+    : READ LPAREN io_list RPAREN
+        {
+            char temp[256];
+        snprintf(temp, sizeof(temp), "READ(%s)", $3);
+            $$ = strdup(temp);
         }
-        $$ = $1;
-    }
-    | array_reference
+    | WRITE LPAREN io_list RPAREN
+        {
+            char temp[256];
+        snprintf(temp, sizeof(temp), "WRITE(%s)", $3);
+            $$ = strdup(temp);
+        }
+        ;
+
+io_list
+    : io_list COMMA io_item
+        {
+            char temp[256];
+        snprintf(temp, sizeof(temp), "%s,%s", $1, $3);
+            $$ = strdup(temp);
+        }
+    | io_item
     {
         $$ = $1;
     }
     ;
 
-expression: logical_expression
+io_item
+    : expression
     {
-        $$ = $1;
+        $$ = strdup($1.text);
+    }
+    | ID ASSIGN expression COMMA expression  /* Format specifier */
+    {
+        char temp[256];
+        snprintf(temp, sizeof(temp), "%s=%s,%s", $1, $3.text, $5.text);
+        $$ = strdup(temp);
     }
     ;
 
-logical_expression: relation
+expression
+    : term
     {
         $$ = $1;
     }
-    | logical_expression AND relation
+    | expression PLUS term
     {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .AND. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
+        if (!is_numeric_type($1.type) || !is_numeric_type($3.type)) {
+            report_error(ERR_TYPE, SEV_ERROR, "Non-numeric operands for '+'", NULL);
+            $$.type = TYPE_ERROR;
+        } else {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "%s+%s", $1.text, $3.text);
+            $$.text = strdup(buf);
+            $$.type = promote_type($1.type, $3.type);
+            $$.kind = SYMBOL_EXPRESSION;
+        }
     }
-    | logical_expression OR relation
+    | expression MINUS term
     {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .OR. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | NOT relation
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), ".NOT. %s", $2);
-        $$ = strdup(temp);
-        free($2);
-    }
-    ;
-
-relation: simple_expression
-    {
-        $$ = $1;
-    }
-    | simple_expression GT simple_expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .GT. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | simple_expression LT simple_expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .LT. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | simple_expression GE simple_expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .GE. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | simple_expression LE simple_expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .LE. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | simple_expression EQ simple_expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .EQ. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | simple_expression NE simple_expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s .NE. %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
+        if (!is_numeric_type($1.type) || !is_numeric_type($3.type)) {
+            report_error(ERR_TYPE, SEV_ERROR, "Non-numeric operands for '-'", NULL);
+            $$.type = TYPE_ERROR;
+        } else {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "%s-%s", $1.text, $3.text);
+            $$.text = strdup(buf);
+            $$.type = promote_type($1.type, $3.type);
+            $$.kind = SYMBOL_EXPRESSION;
+        }
     }
     ;
 
-simple_expression: term
-    {
-        $$ = $1;
-    }
-    | simple_expression PLUS term
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s + %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | simple_expression MINUS term
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s - %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    ;
-
-term: factor
+term
+    : factor
     {
         $$ = $1;
     }
     | term STAR factor
     {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s * %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
+        if (!is_numeric_type($1.type) || !is_numeric_type($3.type)) {
+            report_error(ERR_TYPE, SEV_ERROR, "Non-numeric operands for '*'", NULL);
+            $$.type = TYPE_ERROR;
+        } else {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "%s*%s", $1.text, $3.text);
+            $$.text = strdup(buf);
+            $$.type = promote_type($1.type, $3.type);
+            $$.kind = SYMBOL_EXPRESSION;
+        }
     }
     | term SLASH factor
     {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s / %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    | term POWER factor
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s ** %s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
+        if (!is_numeric_type($1.type) || !is_numeric_type($3.type)) {
+            report_error(ERR_TYPE, SEV_ERROR, "Non-numeric operands for '/'", NULL);
+            $$.type = TYPE_ERROR;
+        } else {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "%s/%s", $1.text, $3.text);
+            $$.text = strdup(buf);
+            $$.type = promote_type($1.type, $3.type);
+            $$.kind = SYMBOL_EXPRESSION;
+        }
     }
     ;
 
-factor: primary
+factor
+    : primary
     {
-        $$ = $1;
-    }
-    | MINUS primary %prec UMINUS
+                  $$ = $1;
+              }
+    | MINUS factor %prec UMINUS
     {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "-%s", $2);
-        $$ = strdup(temp);
-        free($2);
-    }
-    ;
-
-primary: ICONST
-    {
-        $$ = $1;
-    }
-    | RCONST
-    {
-        $$ = $1;
-    }
-    | STRING_LITERAL
-    {
-        $$ = $1;
-    }
-    | TRUE
-    {
-        $$ = strdup(".TRUE.");
-    }
-    | FALSE
-    {
-        $$ = strdup(".FALSE.");
-    }
-    | variable
-    {
-        $$ = $1;
+        if (!is_numeric_type($2.type)) {
+            report_error(ERR_TYPE, SEV_ERROR, "Non-numeric operand for unary '-'", NULL);
+            $$.type = TYPE_ERROR;
+        } else {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "-%s", $2.text);
+            $$.text = strdup(buf);
+            $$.type = $2.type;
+            $$.kind = SYMBOL_EXPRESSION;
+        }
     }
     | LPAREN expression RPAREN
     {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "(%s)", $2);
-        $$ = strdup(temp);
-        free($2);
+        $$ = $2;
     }
     ;
 
-array_reference: ID LPAREN index_list RPAREN  %prec ARRAY_REF
+primary
+    : var_reference
     {
-        if (!check_array_declared($1)) {
-            char error_msg[256];
-            snprintf(error_msg, sizeof(error_msg),
-                "Array '%s' not declared at line %d", $1, yylineno);
-            report_error(ERR_TYPE, SEV_ERROR, error_msg, NULL);
+        $$ = $1;
+    }
+    | ICONST
+    {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%d", $1);
+        $$.text = strdup(buf);
+        $$.type = TYPE_INTEGER;
+        $$.kind = SYMBOL_CONSTANT;
+    }
+    | RCONST
+    {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%g", $1);
+        $$.text = strdup(buf);
+        $$.type = TYPE_REAL;
+        $$.kind = SYMBOL_CONSTANT;
+    }
+    ;
+
+common_block
+    : COMMON SLASH ID SLASH vars NEWLINE
+    {
+        // Create arrays for variable names and types
+        const char** var_names = malloc(sizeof(char*) * MAX_SYMBOLS);
+        type_t* types = malloc(sizeof(type_t) * MAX_SYMBOLS);
+        int num_vars = 0;
+        
+        // Parse the vars string to extract names and types
+        char* var_list = strdup($5);
+        char* token = strtok(var_list, ",");
+        while (token && num_vars < MAX_SYMBOLS) {
+            var_names[num_vars] = strdup(token);
+            types[num_vars] = current_type;  // Use current_type for all variables
+            num_vars++;
+            token = strtok(NULL, ",");
         }
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s(%s)", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
+        
+        process_common_block($3, var_names, types, num_vars);
+        
+        // Clean up
+        for (int i = 0; i < num_vars; i++) {
+            free((void*)var_names[i]);
+        }
+        free(var_names);
+        free(types);
+        free(var_list);
+        
+            $$ = $3;
+        }
+    ;
+
+data_stmt
+    : DATA data_items NEWLINE
+    {
+        $$ = $2;  /* Use data items value */
+        DEBUG_PARSER("DATA statement with items: %s", $2);
     }
     ;
 
-index_list: expression
-    {
-        $$ = $1;
-    }
-    | index_list COMMA expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s,%s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
+data_items
+    : data_items COMMA data_item { $$ = $1; }
+    | data_item { $$ = $1; }
     ;
 
-argument_list: expression
-    {
-        $$ = $1;
-    }
-    | argument_list COMMA expression
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s,%s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
+data_item
+    : vars SLASH value_list SLASH { $$ = $1; }
     ;
 
-goto_statement: GOTO ICONST
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "GOTO %s", $2);
-        $$ = strdup(temp);
-        free($2);
-    }
-    | GOTO variable COMMA LPAREN variable_list RPAREN
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "GOTO %s,(%s)", $2, $5);
-        $$ = strdup(temp);
-        free($2);
-        free($5);
-    }
+value_list
+    : value_list COMMA value { $$ = $1; }
+    | value { $$ = $1; }
     ;
 
-io_statement: READ variable_list
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "READ %s", $2);
-        $$ = strdup(temp);
-        free($2);
+value
+    : ICONST 
+    { 
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%d", $1);
+        $$ = strdup(buf);
     }
-    | READ LPAREN variable_list RPAREN variable_list
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "READ(%s) %s", $3, $5);
-        $$ = strdup(temp);
-        free($3);
-        free($5);
+    | RCONST 
+    { 
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%g", $1);
+        $$ = strdup(buf);
     }
-    | WRITE variable_list
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "WRITE %s", $2);
-        $$ = strdup(temp);
-        free($2);
+    | BCONST 
+    { 
+        $$ = strdup($1 ? ".TRUE." : ".FALSE.");
     }
-    | WRITE LPAREN variable_list RPAREN variable_list
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "WRITE(%s) %s", $3, $5);
-        $$ = strdup(temp);
-        free($3);
-        free($5);
-    }
-    ;
-
-call_statement: CALL ID
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "CALL %s", $2);
-        $$ = strdup(temp);
-        free($2);
-    }
-    | CALL ID LPAREN argument_list RPAREN
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "CALL %s(%s)", $2, $4);
-        $$ = strdup(temp);
-        free($2);
-        free($4);
-    }
-    ;
-
-data_list: data_item
-    {
-        $$ = $1;
-    }
-    | data_list COMMA data_item
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s,%s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    ;
-
-data_item: variable SLASH data_values SLASH
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s/%s/", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    ;
-
-data_values: data_value
-    {
-        $$ = $1;
-    }
-    | data_values COMMA data_value
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s,%s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    ;
-
-data_value: constant
-    {
-        $$ = $1;
-    }
-    | ICONST STAR constant
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s*%s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
-    }
-    ;
-
-constant: ICONST { $$ = $1; }
-    | RCONST { $$ = $1; }
     | STRING_LITERAL { $$ = $1; }
-    | TRUE { $$ = strdup(".TRUE."); }
-    | FALSE { $$ = strdup(".FALSE."); }
-    ;
-
-variable_list: variable
+    | LPAREN RCONST COLON RCONST RPAREN
     {
-        $$ = $1;
-    }
-    | variable_list COMMA variable
-    {
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "%s,%s", $1, $3);
-        $$ = strdup(temp);
-        free($1);
-        free($3);
+        char buf[64];
+        snprintf(buf, sizeof(buf), "(%g:%g)", $2, $4);
+        $$ = strdup(buf);
     }
     ;
 
-if_statement: IF LPAREN logical_expression RPAREN statements ENDIF
+expression_list
+    : expression
     {
-        char temp[2048];
-        snprintf(temp, sizeof(temp), "IF (%s)\n%sENDIF", $3, $5);
-        $$ = strdup(temp);
-        free($3);
-        free($5);
+        $$ = strdup($1.text);
     }
-    | IF LPAREN logical_expression RPAREN THEN statements ENDIF
+    | expression_list COMMA expression
     {
-        char temp[2048];
-        snprintf(temp, sizeof(temp), "IF (%s) THEN\n%sENDIF", $3, $6);
-        $$ = strdup(temp);
-        free($3);
-        free($6);
-    }
-    | IF LPAREN logical_expression RPAREN THEN statements ELSE statements ENDIF
-    {
-        char temp[2048];
-        snprintf(temp, sizeof(temp), "IF (%s) THEN\n%sELSE\n%sENDIF", $3, $6, $8);
-        $$ = strdup(temp);
-        free($3);
-        free($6);
-        free($8);
-    }
-    ;
-
-do_statement: DO variable ASSIGN expression COMMA expression statements ENDDO
-    {
-        char temp[2048];
-        snprintf(temp, sizeof(temp), "DO %s = %s,%s\n%sENDDO", $2, $4, $6, $7);
-        $$ = strdup(temp);
-        free($2);
-        free($4);
-        free($6);
-        free($7);
-    }
-    | DO variable ASSIGN expression COMMA expression COMMA expression statements ENDDO
-    {
-        char temp[2048];
-        snprintf(temp, sizeof(temp), "DO %s = %s,%s,%s\n%sENDDO", $2, $4, $6, $8, $9);
-        $$ = strdup(temp);
-        free($2);
-        free($4);
-        free($6);
-        free($8);
-        free($9);
-    }
-    ;
-
-declaration: type variable_list NEWLINE
-    {
-        process_declaration($2, current_type);
-        $$ = $2;
-    }
-    | DATA data_list NEWLINE
-    {
-        $$ = $2;
-    }
-    | COMMON SLASH ID SLASH variable_list NEWLINE
-    {
-        process_common_block($3, $5);
-        char temp[1024];
-        snprintf(temp, sizeof(temp), "COMMON /%s/ %s", $3, $5);
-        $$ = strdup(temp);
-        free($3);
-        free($5);
-    }
-    | error NEWLINE
-    {
-        report_error(ERR_SYNTAX, SEV_ERROR, "Invalid declaration", NULL);
-        yyerrok;
-        $$ = strdup("");
-    }
-    ;
-
-type: INTEGER 
-    { 
-        current_type = TYPE_INTEGER; 
-        $$ = strdup("INTEGER"); 
-    }
-    | REAL 
-    { 
-        current_type = TYPE_REAL; 
-        $$ = strdup("REAL"); 
-    }
-    | COMPLEX 
-    { 
-        current_type = TYPE_COMPLEX; 
-        $$ = strdup("COMPLEX"); 
-    }
-    | LOGICAL 
-    { 
-        current_type = TYPE_LOGICAL; 
-        $$ = strdup("LOGICAL"); 
-    }
-    | CHARACTER 
-    { 
-        current_type = TYPE_CHARACTER; 
-        $$ = strdup("CHARACTER"); 
-    }
-    | STRING 
-    { 
-        current_type = TYPE_STRING; 
-        $$ = strdup("STRING"); 
+        char buf[256];
+        snprintf(buf, sizeof(buf), "%s,%s", $1, $3.text);
+        $$ = strdup(buf);
     }
     ;
 
 %%
 
 int check_numeric_variables(const char* var1, const char* var2) {
-    symbol_type_t type1 = get_symbol_type(var1);
-    symbol_type_t type2 = get_symbol_type(var2);
+    symbol_t* sym1 = lookup_symbol(var1);
+    symbol_t* sym2 = lookup_symbol(var2);
     
-    return (type1 == TYPE_INTEGER || type1 == TYPE_REAL) &&
-           (type2 == TYPE_INTEGER || type2 == TYPE_REAL);
+    if (!sym1 || !sym2) return 0;
+    
+    return (sym1->type == TYPE_INTEGER || sym1->type == TYPE_REAL) &&
+           (sym2->type == TYPE_INTEGER || sym2->type == TYPE_REAL);
 }
-
-

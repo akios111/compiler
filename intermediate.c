@@ -61,8 +61,8 @@ ic_node_t* create_array_node(const char* name, int index) {
 }
 
 // Δημιουργία κόμβου κλήσης
-ic_node_t* create_call_node(const char* name, ic_node_t** args, int arg_count) {
-    ic_node_t* node = malloc(sizeof(ic_node_t));
+ic_node* create_call_node(const char* name, ic_node** args, int arg_count) {
+    ic_node* node = malloc(sizeof(ic_node));
     node->op = IC_CALL;
     node->u.call.name = strdup(name);
     node->u.call.args = args;

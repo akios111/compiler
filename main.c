@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "globals.h"
+#include "symtab.h"
 
 extern FILE* yyin;
 extern int yyparse(void);
@@ -19,7 +20,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    init_symtab();
+    init_symbol_table();
     init_line_buffer();
 
     if (yyparse() == 0 && error_count == 0) {

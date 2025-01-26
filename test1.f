@@ -1,9 +1,6 @@
-PROGRAM test1
-
-integer g
-integer x(10),z,i,j
+integer x(g),z,i,j
 string s,s_str_(10)
-data x/1,2,3,4,5,6,7,8,9,10/,z/0/
+data x/(5.:20.),(4.:-2.),(0.3:0.)/,z/.true./
 common /com1/i,j
 data s_str_/"string1", *"string2", "string3"/
 $ no comment
@@ -36,8 +33,7 @@ if (y(g(y(z-2)))+a(1,i)) 100,1000,10
 y = .not. x(i)
 1000 continue
 enddo
-END
-
+end
 subroutine try_me_(integer n,a(n))
 do i=1,n
    if (a(i) .gt. 0) a(i) = a(i) - i

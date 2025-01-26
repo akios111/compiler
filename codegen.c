@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include "intermediate.h"
 #include "codegen.h"
+#include "types.h"
 
 /* Global variables */
 ic_node* ic_head = NULL;
@@ -88,25 +89,20 @@ static const char* get_op_string(ic_type_t op) {
     }
 }
 
-temp_var* new_temp(symbol_type_t type) {
+temp_var* new_temp(type_t type) {
     static int temp_counter = 0;
-    temp_var* t = (temp_var*)malloc(sizeof(temp_var));
-    
-    if (!t) {
-        fprintf(stderr, "Error: Memory allocation failed for temporary variable\n");
-        exit(1);
+    temp_var* var = malloc(sizeof(temp_var));
+    if (!var) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return NULL;
     }
-    
-    char name[32];
-    snprintf(name, sizeof(name), "t%d", temp_counter++);
-    t->name = strdup(name);
-    t->type = type;
-    t->next = NULL;
-    
-    return t;
+    snprintf(var->name, sizeof(var->name), "t%d", temp_counter++);
+    var->type = type;
+    var->next = NULL;
+    return var;
 }
 
-ic_node* gen_binary(ic_type_t op, temp_var* result, temp_var* op1, temp_var* op2) {
+ic_node* gen_binary(bin_op_t op, temp_var* result, temp_var* op1, temp_var* op2) {
     ic_node* node = (ic_node*)malloc(sizeof(ic_node));
     if (!node) {
         fprintf(stderr, "Error: Memory allocation failed for IC node\n");
@@ -114,6 +110,7 @@ ic_node* gen_binary(ic_type_t op, temp_var* result, temp_var* op1, temp_var* op2
     }
     
     node->type = IC_BINARY;
+    node->bin_op = op;  // Store the binary operation type
     node->result = result ? strdup(result->name) : NULL;
     node->arg1 = op1 ? strdup(op1->name) : NULL;
     node->arg2 = op2 ? strdup(op2->name) : NULL;
